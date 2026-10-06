@@ -1,5 +1,7 @@
 # Environment & secrets
 .env
+# Redis Insight import file (contains the Redis password)
+redis-insight-import.json
 env.cloud-run.yaml
 
 # AI assistant config (local only)

@@ -22,6 +22,8 @@ trap '[ -n "$pid" ] && kill "$pid" 2>/dev/null; exit 0' TERM INT
 
 while true; do
   stamp=$(env_stamp)
+  # Keep the Redis Insight import file in sync with .env (see docs/tasks/task-2.md)
+  python scripts/insight_import.py >/dev/null 2>&1 || true
   uvicorn backend.app.main:app \
     --host 0.0.0.0 --port 8040 \
     --reload --reload-dir backend --reload-dir domains &

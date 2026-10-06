@@ -38,7 +38,7 @@ graph LR
 | **Code** | VS Code with the demo in `iris/` |
 | **App** | The chat UI, with the Redis Iris activity panel |
 | **Terminal** | A shell in `/code/iris` for `make` commands and tests |
-| **Redis Insight** | Browse the data the demo loads into Redis (open it from the ☰ menu and add your database first, see [Task 2](/tasks/task-2.md)) |
+| **Redis Insight** | Browse the data the demo loads into Redis (open it from the ☰ menu and import your database first, see [Task 2](/tasks/task-2.md)) |
 
 Backend changes reload automatically; frontend changes hot-reload in the App panel.
 

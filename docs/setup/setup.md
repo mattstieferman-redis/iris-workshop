@@ -56,6 +56,6 @@ curl -s backend:8040/api/health
 - **"RateLimitError" in the chat:** your OpenAI organization hit its tokens-per-minute limit. Every model call carries the tool definitions, and one question makes 3–6 calls. Measured on the Reddash demo with `gpt-4o-mini`, one question used about 8,000–61,000 tokens with semantic tool routing on (the default) and about 32,000–98,000 with it off (`TOOL_ROUTING_ENABLED=false`); see [Task 4](/tasks/task-4.md). A key limited to 30k tokens per minute cannot run the agent even with routing, so for a workshop budget tens of thousands of tokens per question and multiply by the questions your attendees ask in the same minute. Cached and blocked questions use few or no tokens. Switching `OPENAI_CHAT_MODEL` in `.env` changes cost and which rate-limit bucket you use, but not the token count.
 - **Frontend logs:** `tail -f /tmp/vite.log` in the Terminal panel.
 
-Tip: to look at the data the demo loaded, add the same Redis database in **Redis Insight**. [Task 2](/tasks/task-2.md) has the steps.
+Tip: to look at the data the demo loaded, import the generated `iris/redis-insight-import.json` into **Redis Insight**. [Task 2](/tasks/task-2.md) has the steps.
 
 Ready? Start [Task 1](/tasks/task-1.md).

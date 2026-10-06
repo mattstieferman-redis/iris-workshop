@@ -9,7 +9,7 @@ DOMAIN ?= $(or $(shell grep -s '^DEMO_DOMAIN=' .env | cut -d= -f2),reddash)
 # In-place sed differs between GNU (Linux/Docker) and BSD (macOS).
 SED_I := $(shell sed --version >/dev/null 2>&1 && echo "sed -i" || echo "sed -i ''")
 
-.PHONY: help domains setup reset dev backend frontend install \
+.PHONY: help domains setup reset dev backend frontend install insight-import \
 	backend-install frontend-install \
 	generate-models generate-data setup-surface load-data \
 	seed-memories seed-langcache seed-all flush-redis \
@@ -23,6 +23,7 @@ help:
 	@echo "  make dev                Start backend + frontend"
 	@echo ""
 	@echo "  make install            Install Python + JS dependencies"
+	@echo "  make insight-import     Write redis-insight-import.json for Redis Insight"
 	@echo "  make seed-memories      Re-seed long-term memories"
 	@echo "  make seed-langcache     Re-seed LangCache entries"
 	@echo "  make flush-redis        Wipe Redis (preserves Agent Memory)"
@@ -60,6 +61,7 @@ setup:
 	@uv run python scripts/load_data.py --domain $(DOMAIN)
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_memories
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_langcache
+	@uv run python scripts/insight_import.py
 	@echo ""
 	@echo "Done."
 
@@ -74,6 +76,7 @@ reset:
 	@uv run python scripts/load_data.py --domain $(DOMAIN)
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_memories
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_langcache
+	@uv run python scripts/insight_import.py
 	@echo ""
 	@echo "Done."
 
@@ -116,6 +119,9 @@ frontend:
 
 flush-redis:
 	@uv run python scripts/flush_redis.py
+
+insight-import:
+	@uv run python scripts/insight_import.py
 
 seed-memories:
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_memories

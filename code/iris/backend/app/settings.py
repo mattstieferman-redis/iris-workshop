@@ -11,7 +11,7 @@ ENV_PATH = ROOT_DIR / ".env"
 if ENV_PATH.exists():
     load_dotenv(ENV_PATH)
 
-DEFAULT_MEMORY_SIMILARITY_THRESHOLD = 0.5
+DEFAULT_MEMORY_SIMILARITY_THRESHOLD = 0.3
 
 # Lets the OpenAI clients be constructed (and the app boot) before a key is configured.
 # Chat requests are rejected with a clear message until a real key is set.

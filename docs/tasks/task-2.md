@@ -27,9 +27,11 @@ The file contains your Redis password, so keep it private (it is gitignored and 
 
 1. In a new conversation ask: **"Given what you know about me, look at my recent orders and tell me what I should reorder tonight and how it should be delivered."**
 2. In the activity panel, open **Agent Memory**. The agent searches long-term memory and uses the delivery preference in its answer.
-3. Now tell the agent **"Please remember that I'm allergic to shellfish."** and ask **"What am I allergic to?"** in the same conversation. This uses short-term (session) memory.
+3. Now tell the agent **"Please remember that I'm allergic to shellfish."** In the activity panel the `remember_customer_detail` tool saves it to long-term memory (look for **Long-term memory · CREATE**).
+4. Start a **new conversation** and ask **"What am I allergic to?"**. The agent finds the saved memory, even though this is a different session.
+5. Try a general question such as **"What should I order tonight?"**. Long-term memory is found by similarity to your message, so a question with nothing about allergies in it may not bring up the allergy. Why is that, and how would you make sure the agent always considers it?
 
-> Long-term memory writes are intentionally not done by the agent's `remember_customer_detail` tool in this demo (the activity panel marks it as blocked). Long-term memories come from the seeded data and from Agent Memory's own extraction, so a new fact is not guaranteed to appear in the next conversation.
+Saving the same fact twice updates one memory instead of creating a duplicate. You can see all of the customer's memories in the **All Context** tab, or in Redis Insight under the `memory:` keys.
 
 ### Step 3: Read the seeded memories
 

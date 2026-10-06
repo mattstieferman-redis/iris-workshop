@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -569,13 +571,28 @@ class ReddashDomain:
         topics = arguments.get("topics") or []
         if not isinstance(topics, list):
             topics = []
+        topics = [str(t).strip() for t in topics if str(t).strip()]
+        # Stable ID per fact, so asking the agent to remember the same thing twice updates one
+        # memory instead of piling up duplicates.
+        memory_id = "mem-" + hashlib.sha1(f"{owner_id}:{text.lower()}".encode()).hexdigest()[:16]
+        try:
+            created = await asyncio.to_thread(
+                memory_service.create_long_term_memory,
+                text=text,
+                owner_id=owner_id,
+                memory_type=memory_type,
+                topics=topics,
+                memory_id=memory_id,
+            )
+        except Exception as exc:
+            return {"error": f"Could not save to long-term memory: {exc}"}
         return {
             "owner_id": owner_id,
             "saved_text": text,
+            "memory_id": memory_id,
             "memory_type": memory_type,
-            "topics": [str(t).strip() for t in topics if str(t).strip()],
-            "demo_blocked": True,
-            "response": {"acknowledged": True},
+            "topics": topics,
+            "response": created,
         }
 
     def write_dataset_meta(self, *, settings: Any, records: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:

@@ -11,7 +11,7 @@ ENV_PATH = ROOT_DIR / ".env"
 if ENV_PATH.exists():
     load_dotenv(ENV_PATH)
 
-DEFAULT_MEMORY_SIMILARITY_THRESHOLD = 0.7
+DEFAULT_MEMORY_SIMILARITY_THRESHOLD = 0.5
 
 
 class Settings(BaseSettings):
@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     langcache_host: str = Field(default="")
     langcache_cache_id: str = Field(default="")
     langcache_api_key: str = Field(default="")
-    langcache_threshold: float = Field(default=0.82)
+    langcache_threshold: float = Field(default=0.9)
 
     backend_host: str = Field(default="127.0.0.1")
     backend_port: int = Field(default=8040)

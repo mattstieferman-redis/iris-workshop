@@ -53,6 +53,7 @@ curl -s backend:8040/api/health
 
 - **App shows errors / 502:** the backend is still starting or waiting for credentials. Check the container logs (`docker compose logs backend`).
 - **Agent has no tools after a restart:** run `make reset` to reload the data.
+- **"RateLimitError" in the chat:** your OpenAI organization hit its tokens-per-minute limit. One agent question can use 20k+ tokens, so a 30k limit is not enough for a workshop. Use a key with a higher limit, or set `OPENAI_CHAT_MODEL=gpt-4o-mini` in `.env`.
 - **Frontend logs:** `tail -f /tmp/vite.log` in the Terminal panel.
 
 Ready? Start [Task 1](/tasks/task-1.md).

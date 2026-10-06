@@ -337,6 +337,17 @@ def _pydantic_model_from_json_schema(name: str, schema: dict) -> type[BaseModel]
     return create_model(f"Schema_{name}", **fields)
 
 
+def _to_plain(value: Any) -> Any:
+    """Recursively turn pydantic models (and containers of them) into plain JSON-able data."""
+    if isinstance(value, BaseModel):
+        return _to_plain(value.model_dump(exclude_none=True))
+    if isinstance(value, dict):
+        return {k: _to_plain(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_to_plain(v) for v in value]
+    return value
+
+
 def _make_mcp_tool(
     tool_def: dict[str, Any],
     cs_service: ContextSurfaceService,
@@ -348,6 +359,9 @@ def _make_mcp_tool(
     args_model = _pydantic_model_from_json_schema(name, input_schema)
 
     async def fn(**kwargs: Any) -> str:
+        # Nested array items (e.g. tag_conditions) can arrive as pydantic model instances,
+        # which the MCP client cannot JSON-serialize, so convert them to plain dicts/lists.
+        kwargs = _to_plain(kwargs)
         # Strip None values — MCP server rejects null for optional numeric params
         clean_args = {k: v for k, v in kwargs.items() if v is not None}
         # Strip Redis key prefixes the LLM sometimes adds (e.g. "reddash_order:ORD_001" → "ORD_001")

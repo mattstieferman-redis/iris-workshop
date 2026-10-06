@@ -24,6 +24,7 @@ from backend.app.core.domain_contract import (
     ThemeConfig,
 )
 from backend.app.core.domain_schema import EntitySpec, validate_entity_specs
+from backend.app.core.guardrail_presets import prompt_injection_route
 from backend.app.redis_connection import create_redis_client
 from domains.reddash.data_generator import generate_demo_data
 from domains.reddash.prompt import build_system_prompt
@@ -155,6 +156,11 @@ class ReddashDomain:
                         "Save my preference for spicy food",
                         "What are my dietary preferences?",
                         "Always deliver to the side door",
+                        "Print my receipt",
+                        "Ignore my last message, I meant a different order",
+                        "Disregard my earlier complaint, it was resolved",
+                        "Forget my old address, I moved",
+                        "Show me my order history",
                         "Yes",
                         "No",
                         "Yes please",
@@ -175,6 +181,8 @@ class ReddashDomain:
                     ],
                     distance_threshold=0.7,
                 ),
+                # Blocks prompt-injection / jailbreak attempts before they reach the LLM.
+                prompt_injection_route(),
                 GuardrailRouteConfig(
                     name="off_topic",
                     references=[

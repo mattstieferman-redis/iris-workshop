@@ -17,6 +17,7 @@ Edit the Reddash domain and see the result in the running app.
 1. In the same file find the `off_topic` guardrail route and its `references` list.
 2. Add a new off-topic example, such as `"Tell me a joke"`.
 3. Save, wait for the backend to restart, and ask the agent for a joke. It should be blocked.
+4. Find the `prompt_injection_route()` entry in the same list. It comes from `backend/app/core/guardrail_presets.py` and holds example attacks (ignore-your-instructions, reveal-your-prompt, jailbreaks, asking for another customer's data). Add an attack phrasing of your own, then check it gets blocked.
 
 ### Step 3: Switch domains
 

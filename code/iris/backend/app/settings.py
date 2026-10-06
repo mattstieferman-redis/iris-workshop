@@ -77,6 +77,8 @@ class Settings(BaseSettings):
     backend_port: int = Field(default=8040)
     cors_origin: str = Field(default="http://localhost:3040")
     guardrail_enabled: bool = Field(default=True)
+    # Send the LLM only the tools a question needs (see ToolRoutingConfig in the domain manifest).
+    tool_routing_enabled: bool = Field(default=True)
     demo_domain: str = Field(default="reddash")
     show_final_verifier_trace_step: bool = Field(default=False)
     show_llm_trace_steps: bool = Field(default=False)

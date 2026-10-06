@@ -102,6 +102,28 @@ class GuardrailConfig(BaseModel):
     routes: list[GuardrailRouteConfig]
 
 
+class ToolRouteConfig(BaseModel):
+    """One group of tools the agent may use for a kind of question."""
+
+    name: str
+    references: list[str]
+    # Tool names or fnmatch patterns (e.g. "filter_order*", "get_order_by_id").
+    tools: list[str]
+    # Max cosine distance to the closest reference for the route to match (lower = stricter).
+    distance_threshold: float = 0.5
+
+
+class ToolRoutingConfig(BaseModel):
+    """Semantic tool routing: pick which tools to send to the LLM for each question."""
+
+    router_name: str
+    # Tools sent with every call (identity, time, memory...).
+    always_on: list[str] = Field(default_factory=list)
+    routes: list[ToolRouteConfig]
+    # Maximum number of matching routes to combine for one question.
+    max_routes: int = 3
+
+
 class SeedMemory(BaseModel):
     text: str
     topics: list[str] = Field(default_factory=list)
@@ -126,6 +148,7 @@ class DomainManifest(BaseModel):
     rag: RagConfig
     identity: IdentityConfig
     guardrail: GuardrailConfig | None = None
+    tool_routing: ToolRoutingConfig | None = None
     seed_memories: list[SeedMemory] = Field(default_factory=list)
     seed_langcache: list[SeedLangCacheEntry] = Field(default_factory=list)
 

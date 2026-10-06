@@ -35,4 +35,4 @@ Scaffold your own domain with `make create-domain DOMAIN=my-domain`.
 
 ---
 
-**Happy building!** See the [Reference](/reference/reference.md) for links and commands.
+**Next:** [Task 4: Save Tokens with Tool Routing](/tasks/task-4.md)

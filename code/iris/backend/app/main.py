@@ -20,9 +20,10 @@ from backend.app.contracts import ChatRequest
 from backend.app.internal_tools import InternalToolService, domain_runtime_config, internal_tool_names
 from backend.app.guardrail_service import GuardrailService
 from backend.app.langcache_service import LangCacheService
-from backend.app.langgraph_agent import create_agent, create_checkpointer
+from backend.app.langgraph_agent import AGENT_TOOL_TOKENS, create_agent, create_checkpointer
 from backend.app.memory_service import MemoryService
 from backend.app.rag_service import SimpleRAGService
+from backend.app.tool_routing_service import ToolRoutingService
 from backend.app.request_context import reset_thread_id, set_thread_id
 from backend.app.settings import get_settings
 
@@ -85,6 +86,7 @@ memory_service = MemoryService(
 )
 langcache_service = LangCacheService(settings)
 guardrail_service = GuardrailService(settings, domain.manifest.guardrail)
+tool_routing_service = ToolRoutingService(settings, domain.manifest.tool_routing)
 
 
 @app.on_event("startup")
@@ -94,6 +96,8 @@ async def _warmup() -> None:
     tasks: list[asyncio.Task] = []
     if guardrail_service.is_configured():
         tasks.append(asyncio.create_task(guardrail_service.warm_up()))
+    if tool_routing_service.is_configured():
+        tasks.append(asyncio.create_task(tool_routing_service.warm_up()))
     tasks.append(asyncio.create_task(get_agent()))
     results = await asyncio.gather(*tasks, return_exceptions=True)
     for r in results:
@@ -319,6 +323,7 @@ async def health() -> JSONResponse:
         "memory_enabled": memory_service.is_configured(),
         "langcache_enabled": langcache_service.is_configured(),
         "guardrail_enabled": guardrail_service.is_configured(),
+        "tool_routing_enabled": tool_routing_service.is_configured(),
         "internal_tools": internal_tool_names(settings),
     })
 
@@ -424,6 +429,7 @@ async def cs_event_stream(request: ChatRequest) -> AsyncIterator[str]:
     log.info("━━━ REQUEST [thread=%s] %s", thread_id[:8], latest_message[:80])
 
     # ── Guardrail: semantic routing check ──
+    guard_vector: list[float] | None = None
     if guardrail_service.is_configured():
         guard_vector = await guardrail_service.embed(latest_message.strip())
         yield sse(
@@ -522,6 +528,44 @@ async def cs_event_stream(request: ChatRequest) -> AsyncIterator[str]:
 
     defer_final_answer = runtime_config.get("enable_post_model_verifier", False)
     config = {"configurable": {"thread_id": thread_id}}
+
+    # ── Semantic tool routing: attach only the tools this question needs ──
+    if guard_vector is not None and tool_routing_service.is_configured() and AGENT_TOOL_TOKENS:
+        all_tool_names = list(AGENT_TOOL_TOKENS)
+        yield sse(
+            "tool-call",
+            toolName="tool_routing",
+            toolKind="guardrail",
+            payload={"query": latest_message.strip()},
+            ts=timer.elapsed_ms(),
+        )
+        route_start = perf_counter()
+        selection = await tool_routing_service.select(guard_vector, all_tool_names)
+        route_ms = max(round((perf_counter() - route_start) * 1000), 1)
+        if not selection.fallback:
+            config["configurable"]["tool_names"] = selection.tools
+        total_tokens = sum(AGENT_TOOL_TOKENS.values())
+        sent_tokens = sum(AGENT_TOOL_TOKENS.get(name, 0) for name in selection.tools)
+        yield sse(
+            "tool-result",
+            toolName="tool_routing",
+            toolKind="guardrail",
+            payload={
+                "routes": selection.routes,
+                "fallback": selection.fallback,
+                "tools_selected": len(selection.tools),
+                "tools_total": len(all_tool_names),
+                "approx_tool_tokens_sent": sent_tokens,
+                "approx_tool_tokens_saved_per_call": total_tokens - sent_tokens,
+            },
+            durationMs=route_ms,
+            ts=timer.elapsed_ms(),
+        )
+        log.info(
+            "Tool routing: %d/%d tools (~%d tokens/call saved) routes=%s%s",
+            len(selection.tools), len(all_tool_names), total_tokens - sent_tokens,
+            [r["name"] for r in selection.routes], " [fallback]" if selection.fallback else "",
+        )
 
     pending_tools: dict[str, dict[str, Any]] = {}
     llm_start_times: dict[str, float] = {}

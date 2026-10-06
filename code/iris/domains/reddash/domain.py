@@ -12,6 +12,8 @@ from backend.app.core.domain_contract import (
     GeneratedDataset,
     GuardrailConfig,
     GuardrailRouteConfig,
+    ToolRouteConfig,
+    ToolRoutingConfig,
     IdentityConfig,
     InternalToolDefinition,
     NamespaceConfig,
@@ -198,6 +200,149 @@ class ReddashDomain:
                         "Generate an image of a cat",
                     ],
                     distance_threshold=0.5,
+                ),
+            ],
+        ),
+        # Semantic tool routing: instead of sending all ~57 tool definitions (~15k tokens) with
+        # every model call, send only the tools for the kind of question being asked.
+        tool_routing=ToolRoutingConfig(
+            router_name="reddash-tool-routes",
+            always_on=[
+                "get_current_user_profile",
+                "get_current_time",
+                "dataset_overview",
+                "search_customer_memory",
+                "remember_customer_detail",
+            ],
+            routes=[
+                ToolRouteConfig(
+                    name="order_status_and_delivery",
+                    references=[
+                        "Where is my order?",
+                        "Why is my order running late?",
+                        "My order is late",
+                        "When will my food arrive?",
+                        "What's the ETA on my delivery?",
+                        "Track my order",
+                        "Who is my driver and where are they?",
+                        "The driver hasn't shown up",
+                        "What is the status of my most recent order?",
+                        "What happened with my delivery?",
+                    ],
+                    tools=[
+                        "filter_order", "get_order_by_id", "list_order",
+                        "filter_deliveryevent", "get_deliveryevent_by_id",
+                        "filter_driver", "get_driver_by_id",
+                    ],
+                ),
+                ToolRouteConfig(
+                    name="order_history_and_items",
+                    references=[
+                        "Show me my order history",
+                        "What did I order?",
+                        "What was in that order?",
+                        "What restaurants have I ordered from?",
+                        "Show my recent orders",
+                        "What should I reorder tonight?",
+                        "What did I eat last week?",
+                        "Which restaurant is my newest order from?",
+                    ],
+                    tools=[
+                        "filter_order", "get_order_by_id", "list_order",
+                        "filter_orderitem", "get_orderitem_by_id", "list_orderitem",
+                        "search_orderitem_by_text",
+                        "filter_restaurant", "get_restaurant_by_id", "list_restaurant",
+                        "search_restaurant_by_text",
+                    ],
+                ),
+                ToolRouteConfig(
+                    name="payments_and_refunds",
+                    references=[
+                        "How much was I charged?",
+                        "Can I get a refund?",
+                        "What was the payment breakdown for my order?",
+                        "Which card did I pay with?",
+                        "Did my promo code get applied?",
+                        "What was the delivery fee and tip?",
+                        "Was I charged a service fee?",
+                    ],
+                    tools=[
+                        "filter_payment", "get_payment_by_id", "list_payment",
+                        "filter_order", "get_order_by_id",
+                        "search_policy_by_text",
+                    ],
+                ),
+                ToolRouteConfig(
+                    name="support_tickets",
+                    references=[
+                        "I reported a missing item. Was that resolved?",
+                        "What is the status of my support ticket?",
+                        "I filed a complaint about my order",
+                        "Has this kind of problem happened to me before?",
+                        "Do I have any open issues?",
+                    ],
+                    tools=[
+                        "filter_supportticket", "get_supportticket_by_id", "search_supportticket_by_text",
+                        "filter_order", "get_order_by_id", "filter_orderitem",
+                    ],
+                ),
+                ToolRouteConfig(
+                    name="policies",
+                    references=[
+                        "What is your refund policy?",
+                        "What is the cancellation policy?",
+                        "How are late deliveries compensated?",
+                        "What are the rules for missing items?",
+                        "What are your delivery fee rules?",
+                        "Do you have a policy on allergies?",
+                    ],
+                    tools=[
+                        "search_policy_by_text", "search_policy_by_content_embedding_similarity",
+                        "filter_policy", "get_policy_by_id",
+                    ],
+                ),
+                ToolRouteConfig(
+                    name="account_and_membership",
+                    references=[
+                        "Am I a Plus member?",
+                        "Do I get free delivery with my membership?",
+                        "What is my membership tier?",
+                        "Show my account details",
+                        "What is my delivery address?",
+                    ],
+                    tools=[
+                        "filter_customer", "get_customer_by_id", "search_customer_by_text",
+                        "search_policy_by_text",
+                    ],
+                ),
+                ToolRouteConfig(
+                    name="totals_and_counts",
+                    references=[
+                        "How many orders have I placed?",
+                        "How much have I spent in total?",
+                        "Give me a summary of my spending",
+                        "What is my average order value?",
+                    ],
+                    tools=[
+                        "count_*", "summarize_*",
+                        "filter_payment", "filter_order", "list_payment", "list_order",
+                    ],
+                    # Strict: broad "how many / how much" wording otherwise matches unrelated questions.
+                    distance_threshold=0.4,
+                ),
+                ToolRouteConfig(
+                    name="combine_results",
+                    references=[
+                        "Which orders have both a support ticket and a refund?",
+                        "Orders that were late and also had a missing item",
+                        "Combine my late orders and my refunded orders",
+                    ],
+                    tools=[
+                        "union_results", "intersect_results", "except_results", "expand_results",
+                        "filter_*", "get_*_by_id",
+                    ],
+                    # Strict: this route attaches many tools, so only match clear "combine" wording.
+                    distance_threshold=0.33,
                 ),
             ],
         ),

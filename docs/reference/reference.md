@@ -19,6 +19,7 @@ Run these in the Terminal panel (they start in `/code/iris`):
 | `make seed-memories` | Re-seed long-term memories |
 | `make seed-langcache` | Re-seed the semantic cache |
 | `make create-domain DOMAIN=x` | Scaffold a new domain |
+| `uv run python scripts/measure_tokens.py "question"` | Measure OpenAI tokens per model call (set `TOOL_ROUTING_ENABLED=false` to compare) |
 | `pytest` | Run the unit tests |
 
 ## Where Things Run

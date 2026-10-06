@@ -19,6 +19,7 @@ from typing import Any, Callable, Optional
 from langchain_core.tools import StructuredTool
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.redis.aio import AsyncRedisSaver
+from langgraph.config import get_config
 from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field, create_model
 
@@ -425,6 +426,40 @@ async def create_checkpointer(settings: Settings) -> AsyncRedisSaver:
     return checkpointer
 
 
+# OpenAI bills tool definitions more compactly than their raw JSON; this factor was calibrated
+# against measured usage (Reddash: ~21k raw-JSON tokens vs ~14k billed for the 52 MCP tools).
+_SCHEMA_TOKEN_CALIBRATION = 0.65
+
+# Approximate billed tokens per tool definition, filled in by create_agent (used for reporting).
+AGENT_TOOL_TOKENS: dict[str, int] = {}
+
+
+def _estimate_tool_tokens(tools: list[StructuredTool]) -> dict[str, int]:
+    try:
+        import tiktoken
+        from langchain_core.utils.function_calling import convert_to_openai_tool
+
+        encoder = tiktoken.get_encoding("o200k_base")
+        return {
+            tool.name: round(
+                len(encoder.encode(json.dumps(convert_to_openai_tool(tool)))) * _SCHEMA_TOKEN_CALIBRATION
+            )
+            for tool in tools
+        }
+    except Exception:  # estimates are informational only
+        log.warning("Could not estimate tool token sizes", exc_info=True)
+        return {}
+
+
+def _tool_names_for_call() -> list[str] | None:
+    """Tool names the semantic tool router selected for this request, if any."""
+    try:
+        names = (get_config().get("configurable") or {}).get("tool_names")
+    except RuntimeError:  # called outside a LangGraph run
+        return None
+    return list(names) if names else None
+
+
 async def create_agent(
     settings: Settings,
     internal_tools: InternalToolService,
@@ -468,8 +503,27 @@ async def create_agent(
     if post_model_hook is not None:
         agent_kwargs["post_model_hook"] = post_model_hook
 
+    estimates = _estimate_tool_tokens(tools)
+    AGENT_TOOL_TOKENS.clear()
+    AGENT_TOOL_TOKENS.update({tool.name: estimates.get(tool.name, 0) for tool in tools})
+
+    # Every tool stays executable (ToolNode), but each model call is only shown the tools the
+    # semantic tool router picked for the request (config["configurable"]["tool_names"]).
+    tools_by_name = {tool.name: tool for tool in tools}
+    bound_models: dict[frozenset[str], Any] = {}
+    all_tools_model = model.bind_tools(tools)
+
+    def select_model(state: Any, runtime: Any = None) -> Any:
+        names = _tool_names_for_call()
+        if not names:
+            return all_tools_model
+        key = frozenset(names)
+        if key not in bound_models:
+            bound_models[key] = model.bind_tools([tools_by_name[n] for n in names if n in tools_by_name])
+        return bound_models[key]
+
     return create_react_agent(
-        model,
+        select_model,
         tools,
         **agent_kwargs,
     )

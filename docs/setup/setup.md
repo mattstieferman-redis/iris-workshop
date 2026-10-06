@@ -53,7 +53,7 @@ curl -s backend:8040/api/health
 
 - **App shows errors / 502:** the backend is still starting or waiting for credentials. Check the container logs (`docker compose logs backend`).
 - **Agent has no tools after a restart:** run `make reset` to reload the data.
-- **"RateLimitError" in the chat:** your OpenAI organization hit its tokens-per-minute limit. One agent question can use 20k+ tokens, so a 30k limit is not enough for a workshop. Use a key with a higher limit, or set `OPENAI_CHAT_MODEL=gpt-4o-mini` in `.env`.
+- **"RateLimitError" in the chat:** your OpenAI organization hit its tokens-per-minute limit. Every model call carries the tool definitions, and one question makes 3–6 calls. Measured on the Reddash demo with `gpt-4o-mini`, one question used about 8,000–61,000 tokens with semantic tool routing on (the default) and about 32,000–98,000 with it off (`TOOL_ROUTING_ENABLED=false`); see [Task 4](/tasks/task-4.md). A key limited to 30k tokens per minute cannot run the agent even with routing, so for a workshop budget tens of thousands of tokens per question and multiply by the questions your attendees ask in the same minute. Cached and blocked questions use few or no tokens. Switching `OPENAI_CHAT_MODEL` in `.env` changes cost and which rate-limit bucket you use, but not the token count.
 - **Frontend logs:** `tail -f /tmp/vite.log` in the Terminal panel.
 
 Ready? Start [Task 1](/tasks/task-1.md).

@@ -143,6 +143,7 @@ backend/
     memory_service.py        # Redis Agent Memory client
     context_surface_service.py  # MCP tool wrapper
     guardrail_service.py     # Semantic routing guardrail
+    tool_routing_service.py  # Semantic tool routing (sends the LLM only the tools a question needs)
     langcache_service.py     # Semantic cache client
     settings.py              # Pydantic BaseSettings
     core/

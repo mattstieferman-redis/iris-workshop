@@ -27,6 +27,7 @@ export function toolDisplayName(toolName: string) {
   if (toolName === "long_term_memory_search") return "Long-term memory · SEARCH";
   if (toolName === "semantic_cache_search") return "Semantic cache · SEARCH";
   if (toolName === "guardrail_check") return "Semantic router · CHECK";
+  if (toolName === "tool_routing") return "Tool selection · ROUTE";
   if (toolName === "get_current_user_profile") return "Current user profile";
   if (toolName === "get_current_time") return "Current time";
   if (/^search_\w+_memory$/.test(toolName)) return "Long-term memory · SEARCH";

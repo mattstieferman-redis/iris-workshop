@@ -217,12 +217,12 @@ The environment runs six Docker containers, all accessed through a single nginx 
    - Updates in real-time when markdown changes
 
 5. **redis**
-   - Redis database for workshop exercises
-   - Accessible from the web container at `redis:6379`
+   - Local Redis database, available to the web container at `redis:6379`
+   - Not used by the Iris demo, which reads and writes the Redis database configured in `code/iris/.env`
 
 6. **redisinsight** (accessed via `/redisinsight/`)
    - Redis Insight GUI for database visualization
-   - Pre-configured to connect to the workshop Redis instance
+   - Starts with no database. Add the Redis database from `code/iris/.env` (the Iris demo does not use the local `redis` container) by following Task 2 in the workshop docs
 
 **Path-Based Routing:**
 

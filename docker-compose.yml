@@ -76,13 +76,11 @@ services:
     container_name: workshop-redisinsight
     environment:
       - RI_PROXY_PATH=/redisinsight
-      - RI_REDIS_HOST=redis
-      - RI_REDIS_PORT=6379
-      - RI_REDIS_ALIAS=Workshop Redis
+    # No database is pre-configured: the Iris demo uses the Redis database from
+    # code/iris/.env (not the local `redis` container), so attendees add that
+    # connection themselves (see docs/tasks/task-2.md).
     volumes:
       - redisinsight-data:/data
-    depends_on:
-      - redis
 
 volumes:
   iris-venv:

@@ -8,9 +8,23 @@ See what the demo stored in Redis, and how Agent Memory changes the agent's answ
 
 ### Step 1: Browse the data
 
+Redis Insight does not know about your database yet. The demo stores its data in the Redis database from `iris/.env`, not in the workshop's local Redis container, so you add it once:
+
 1. Open **Redis Insight** from the ☰ menu.
-2. Add a connection to your Redis Cloud database, using the `REDIS_*` values from `iris/.env`.
-3. Look for keys starting with `reddash_` (orders, drivers, restaurants, policies). These are what Context Retriever exposes to the agent.
+2. The first time, it shows an **EULA and Privacy settings** dialog. Read it, choose your privacy settings, and accept the terms to continue. (*Encrypt sensitive information* is unavailable in this environment; your connection details stay in this workshop environment only.)
+3. Click **Add Redis database** and enter the values from `iris/.env`:
+
+   | Insight field | `.env` value |
+   |---------------|--------------|
+   | Host | `REDIS_HOST` |
+   | Port | `REDIS_PORT` |
+   | Username | `REDIS_USERNAME` (usually `default`) |
+   | Password | `REDIS_PASSWORD` |
+   | Use TLS | on only if `REDIS_SSL=true` |
+
+4. Open the database and look for keys starting with `reddash_` (orders, drivers, restaurants, policies). These are what Context Retriever exposes to the agent. The **Search** tab lists the indexes that make them queryable.
+
+> If the database looks empty, check that you connected to the database in `.env` and that `make setup` finished. The local "redis" container is not used by the demo.
 
 ### Step 2: See memory change an answer
 

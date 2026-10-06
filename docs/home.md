@@ -13,18 +13,24 @@ In this workshop you will run and explore a working AI agent built on **Redis Ir
 
 ## How It Works
 
-The demo is a food-delivery support agent (**Reddash**). The agent runs a pipeline for every message, and every stage reads from or writes to Redis (dotted lines): routes for Semantic Routing, cached responses for LangCache, short- and long-term memory for Agent Memory, and your business data for Context Retriever:
+The demo is a food-delivery support agent (**Reddash**). The agent runs a pipeline for every message, and every stage reads from or writes to Redis (dotted lines): routes for Semantic Routing (the guardrail and tool selection), cached responses for LangCache, short- and long-term memory for Agent Memory, and your business data for Context Retriever:
 
 ```mermaid
-graph LR
-    U[You] --> G[Semantic Routing]
-    G -->|on topic| C[LangCache]
+graph TD
+    U[You] --> G
+    subgraph SR[Semantic Routing]
+        G["Guardrail<br/>on topic or off topic"]
+        TS["Tool selection<br/>which tools to attach"]
+    end
     G -->|off topic| X[Blocked]
+    G -->|on topic| C[LangCache]
     C -->|hit| O[Cached answer]
     C -->|miss| M[Agent Memory]
     M --> A[LLM agent]
+    G -.->|same embedding| TS
+    TS -->|only the tools needed| A
     A <-->|tools| R[Context Retriever]
-    G -.- D[(Redis)]
+    SR -.- D[(Redis)]
     C -.- D
     O -.- D
     M -.- D
@@ -38,7 +44,7 @@ graph LR
 | **Code** | VS Code with the demo in `iris/` |
 | **App** | The chat UI, with the Redis Iris activity panel |
 | **Terminal** | A shell in `/code/iris` for `make` commands and tests |
-| **Redis Insight** | Browse the data the demo loads into Redis (open it from the ☰ menu) |
+| **Redis Insight** | Browse the data the demo loads into Redis (open it from the ☰ menu and add your database first, see [Task 2](/tasks/task-2.md)) |
 
 Backend changes reload automatically; frontend changes hot-reload in the App panel.
 

@@ -32,7 +32,7 @@ The question now matches the `support_tickets` route, so only 11 of 57 tools are
 
 ### Step 3: Watch it in the app
 
-Ask the same question in the **App** panel and open **Tool selection · ROUTE** under *Semantic Routing* in the activity panel. It shows the matched route, its distance, and how many tools were selected.
+Ask the same question in the **App** panel and open **Tool selection · ROUTE** under *Semantic Routing* in the activity panel. It shows the matched route, its distance, and how many tools were selected. Then open the **All Context** tab and look at the **Tool Selection** card under *Context Retriever*: it shows how many of the 57 tools were sent, roughly how many tokens that saved per model call, the matched routes, and (under *View selected tools*) the exact tools the LLM was shown.
 
 ### Step 4: Read the routes
 

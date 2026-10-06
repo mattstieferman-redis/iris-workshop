@@ -8,8 +8,8 @@ In this workshop you will run and explore a working AI agent built on **Redis Ir
 - How **LangCache** answers repeated questions from a semantic cache
 - How **Agent Memory** carries short-term and long-term context between turns
 - How **Context Retriever** gives the agent schema-first access to business data in Redis
-- How **Semantic Routing** can also choose which tools the agent sees, cutting token use by half or more
 - How a demo "domain" is defined, and how to change one
+- How to reuse Semantic Routing to send the agent only the tools each question needs, cutting token use by 37–77% in our tests
 
 ## How It Works
 

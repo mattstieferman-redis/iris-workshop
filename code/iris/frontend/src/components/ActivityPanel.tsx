@@ -349,6 +349,44 @@ function ActivityView({ allMessages, mode, isStreaming }: { allMessages: ChatMes
 
 
 
+/* ─── Semantic tool routing result for the latest question ─── */
+
+type ToolRoutingInfo = {
+  routes: { name: string; distance: number }[];
+  fallback: boolean;
+  toolsSelected: number;
+  toolsTotal: number;
+  selectedTools: string[];
+  tokensSavedPerCall: number;
+};
+
+function latestToolRouting(allMessages: ChatMessage[]): ToolRoutingInfo | null {
+  const latestAssistant = [...allMessages].reverse().find((m) => m.role === "assistant");
+  if (!latestAssistant) return null;
+  const event = mergeToolEvents(latestAssistant.toolEvents).find(
+    (t) => t.toolName === "tool_routing" && t.resultPayload !== undefined
+  );
+  const payload = event?.resultPayload as Record<string, unknown> | undefined;
+  if (!payload) return null;
+  return {
+    routes: Array.isArray(payload.routes) ? (payload.routes as { name: string; distance: number }[]) : [],
+    fallback: payload.fallback === true,
+    toolsSelected: Number(payload.tools_selected ?? 0),
+    toolsTotal: Number(payload.tools_total ?? 0),
+    selectedTools: Array.isArray(payload.selected_tools) ? (payload.selected_tools as string[]) : [],
+    tokensSavedPerCall: Number(payload.approx_tool_tokens_saved_per_call ?? 0),
+  };
+}
+
+function formatTokens(n: number): string {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+}
+
+function shortDescription(text: string): string {
+  const firstSentence = text.split(/(?<=[.!?])\s/)[0] ?? text;
+  return firstSentence.length > 90 ? `${firstSentence.slice(0, 90).replace(/\s+\S*$/, "")}...` : firstSentence;
+}
+
 /* ─── Expandable card used in conversation All Context ─── */
 
 function ExpandableCard({
@@ -492,6 +530,7 @@ function RedisContextContent({
   mode,
   domain,
   variant = "overview",
+  routing = null,
 }: {
   memoryData: MemoryDashboardState;
   memoryLoading: boolean;
@@ -501,6 +540,7 @@ function RedisContextContent({
   mode: AgentMode;
   domain: DomainConfig;
   variant?: "overview" | "conversation";
+  routing?: ToolRoutingInfo | null;
 }) {
   const mcpTools = toolsData.filter((t) => t.kind === "mcp_tool");
   const entityCount = new Set(mcpTools.map((t) => extractEntity(t.name))).size;
@@ -578,6 +618,68 @@ function RedisContextContent({
               ))}
             </div>
           ))}
+        </div>
+      )}
+    </ExpandableCard>
+  );
+
+  const toolSelection = (
+    <ExpandableCard
+      key="tool-selection"
+      title={<><img src={assetUrl("/icons/semantic-routing-64-duotone.svg")} alt="" className="card-title-icon" />Tool Selection</>}
+      summary={
+        routing ? (
+          <>
+            <div className="overview-stat-row">
+              <div className="overview-stat">
+                <span className="overview-stat-value overview-stat-value--sm">{routing.toolsSelected}</span>
+                <span className="overview-stat-label">of {routing.toolsTotal} tools sent to the LLM</span>
+              </div>
+              {!routing.fallback && routing.tokensSavedPerCall > 0 && (
+                <div className="overview-stat">
+                  <span className="overview-stat-value overview-stat-value--sm">~{formatTokens(routing.tokensSavedPerCall)}</span>
+                  <span className="overview-stat-label">tokens saved per call</span>
+                </div>
+              )}
+            </div>
+            <div className="overview-preview">
+              {routing.fallback ? (
+                <div className="overview-preview-item">No route matched, so every tool was sent</div>
+              ) : (
+                routing.routes.map((r) => (
+                  <div key={r.name} className="overview-preview-item">
+                    {r.name} · distance {Number(r.distance).toFixed(2)}
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="overview-preview">
+            <div className="overview-preview-item">
+              No tool selection for the latest question (answered from cache, blocked, or tool routing is off)
+            </div>
+          </div>
+        )
+      }
+      expandLabel="View selected tools"
+    >
+      {routing && !routing.fallback && routing.selectedTools.length > 0 && (
+        <div className="panel-tools-grouped">
+          <div className="panel-entity-group">
+            <div className="panel-entity-header">Selected for this question</div>
+            {routing.selectedTools.map((name) => {
+              const def = toolsData.find((t) => t.name === name);
+              const generated = generateToolDescription(name);
+              const description = generated !== name ? generated : shortDescription(def?.description ?? "");
+              return (
+                <div key={name} className="panel-tool-item">
+                  {description && <div className="panel-tool-desc">{description}</div>}
+                  <div className="panel-tool-name">{name}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </ExpandableCard>
@@ -685,7 +787,7 @@ function RedisContextContent({
   );
 
   const sections = variant === "conversation"
-    ? [dataSources, langCache, agentMemory, contextRetriever]
+    ? [dataSources, langCache, agentMemory, contextRetriever, ...(mode === "simple_rag" ? [] : [toolSelection])]
     : [dataSources, contextRetriever, langCache, agentMemory];
 
   return (
@@ -796,6 +898,7 @@ export function ActivityPanel({
                 mode={mode}
                 domain={domain}
                 variant="conversation"
+                routing={latestToolRouting(allMessages)}
               />
             )}
           </>

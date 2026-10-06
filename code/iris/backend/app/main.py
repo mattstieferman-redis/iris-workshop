@@ -555,6 +555,8 @@ async def cs_event_stream(request: ChatRequest) -> AsyncIterator[str]:
                 "fallback": selection.fallback,
                 "tools_selected": len(selection.tools),
                 "tools_total": len(all_tool_names),
+                # Names of the tools attached to the model call (empty on fallback: all tools).
+                "selected_tools": [] if selection.fallback else selection.tools,
                 "approx_tool_tokens_sent": sent_tokens,
                 "approx_tool_tokens_saved_per_call": total_tokens - sent_tokens,
             },

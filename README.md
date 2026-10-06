@@ -16,7 +16,7 @@ Perfect for teaching web development, APIs, databases, or any coding topic!
 
 ## This Repo: Redis Iris Workshop
 
-This copy of the template runs the [Redis Iris demos](code/iris/README.md) (Semantic Routing, LangCache, Agent Memory, Context Retriever). Before the first `docker compose up`, nothing else is needed; once it is running, fill in the credentials in `code/iris/.env` and run `make setup` in the Terminal panel (see `docs/setup/setup.md`). The backend waits for `OPENAI_API_KEY` and restarts itself when `.env` changes.
+This copy of the template runs the [Redis Iris demos](code/iris/README.md) (Semantic Routing, LangCache, Agent Memory, Context Retriever). Before the first `docker compose up`, nothing else is needed; once it is running, fill in the credentials in `code/iris/.env` and run `make setup` in the Terminal panel (see `docs/setup/setup.md`). The demo starts without an OpenAI key (chat replies that the key is missing) and the backend restarts itself when `.env` changes.
 
 ## Try the Demo
 

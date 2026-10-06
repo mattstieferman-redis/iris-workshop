@@ -27,7 +27,7 @@ Open `iris/.env` and fill in the values provided for the workshop:
 
 Leave `MCP_AGENT_KEY` and `CTX_SURFACE_ID` empty. The next step fills them in.
 
-> The backend waits for `OPENAI_API_KEY` and restarts automatically whenever `.env` changes.
+> The demo starts even before any credentials are set. Until `OPENAI_API_KEY` is added, the chat replies with a message saying so. The backend restarts automatically whenever `.env` changes.
 
 ## 2. Load the Data
 

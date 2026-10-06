@@ -13,6 +13,10 @@ if ENV_PATH.exists():
 
 DEFAULT_MEMORY_SIMILARITY_THRESHOLD = 0.5
 
+# Lets the OpenAI clients be constructed (and the app boot) before a key is configured.
+# Chat requests are rejected with a clear message until a real key is set.
+OPENAI_KEY_PLACEHOLDER = "missing-openai-api-key"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(

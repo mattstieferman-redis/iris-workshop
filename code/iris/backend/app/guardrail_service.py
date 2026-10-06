@@ -18,7 +18,7 @@ from redisvl.utils.vectorize import OpenAITextVectorizer
 
 from backend.app.core.domain_contract import GuardrailConfig
 from backend.app.redis_connection import build_redis_url
-from backend.app.settings import Settings
+from backend.app.settings import OPENAI_KEY_PLACEHOLDER, Settings
 
 log = logging.getLogger("iris.guardrail")
 
@@ -30,7 +30,7 @@ class GuardrailService:
         self._redis_url = build_redis_url(settings)
         self._enabled = settings.guardrail_enabled
         self._config = guardrail_config
-        self._openai = AsyncOpenAI(api_key=settings.openai_api_key)
+        self._openai = AsyncOpenAI(api_key=settings.openai_api_key or OPENAI_KEY_PLACEHOLDER)
         self._router: SemanticRouter | None = None
         self._lock = asyncio.Lock()
         self._block_messages: dict[str, str] = {

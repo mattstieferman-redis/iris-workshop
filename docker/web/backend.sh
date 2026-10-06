@@ -10,16 +10,6 @@ fi
 
 uv sync --frozen --extra dev || exit 1
 
-# The app cannot start without an OpenAI key, so wait for one instead of crash-looping.
-has_key() {
-  [ -n "$OPENAI_API_KEY" ] || grep -qE '^OPENAI_API_KEY=.+' .env
-}
-if ! has_key; then
-  echo "Waiting for OPENAI_API_KEY in code/iris/.env (and the other credentials listed there)..."
-  until has_key; do sleep 3; done
-  echo "Credentials found, starting the backend."
-fi
-
 # --reload-dir is limited to Python code so the watcher ignores node_modules.
 export WATCHFILES_FORCE_POLLING=true
 

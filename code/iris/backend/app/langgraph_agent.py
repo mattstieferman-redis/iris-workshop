@@ -26,7 +26,7 @@ from backend.app.context_surface_service import ContextSurfaceService
 from backend.app.core.domain_loader import get_active_domain
 from backend.app.internal_tools import InternalToolService, domain_runtime_config
 from backend.app.redis_connection import build_redis_url
-from backend.app.settings import Settings
+from backend.app.settings import OPENAI_KEY_PLACEHOLDER, Settings
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
@@ -437,7 +437,7 @@ async def create_agent(
     model_kw: dict[str, Any] = {
         "model": settings.openai_chat_model,
         "temperature": 0.2,
-        "api_key": settings.openai_api_key,
+        "api_key": settings.openai_api_key or OPENAI_KEY_PLACEHOLDER,
     }
     if settings.openai_base_url:
         model_kw["base_url"] = settings.openai_base_url

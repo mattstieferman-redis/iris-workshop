@@ -13,7 +13,7 @@ from redisvl.query import VectorQuery
 from backend.app.core.domain_loader import get_active_domain
 from backend.app.openai_errors import classify_openai_exception
 from backend.app.redis_connection import RESILIENT_CONNECTION_KWARGS, build_redis_url, create_redis_client
-from backend.app.settings import Settings
+from backend.app.settings import OPENAI_KEY_PLACEHOLDER, Settings
 
 
 def _discover_index(settings: Settings, *, name_contains: str) -> str:
@@ -49,7 +49,7 @@ class SimpleRAGService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.domain = get_active_domain(settings)
-        client_kw: dict[str, Any] = {"api_key": settings.openai_api_key}
+        client_kw: dict[str, Any] = {"api_key": settings.openai_api_key or OPENAI_KEY_PLACEHOLDER}
         if settings.openai_base_url:
             client_kw["base_url"] = settings.openai_base_url
         self.openai = AsyncOpenAI(**client_kw)

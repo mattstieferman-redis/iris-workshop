@@ -313,6 +313,7 @@ def _pop_pending_tool(
 async def health() -> JSONResponse:
     return JSONResponse({
         "ok": True,
+        "openai_configured": bool(settings.openai_api_key),
         "domain": domain.manifest.id,
         "mcp_enabled": bool(settings.mcp_agent_key),
         "memory_enabled": memory_service.is_configured(),
@@ -864,9 +865,23 @@ async def domain_events_stream(cursor: str = "$") -> StreamingResponse:
     )
 
 
+async def _missing_openai_key_stream() -> AsyncIterator[str]:
+    yield sse(
+        "text-delta",
+        delta=(
+            "\u26a0\ufe0f OPENAI_API_KEY is not set. Add it to `.env` "
+            "(the backend restarts automatically when `.env` changes), then ask again."
+        ),
+    )
+    yield sse("done", totalElapsedMs=0)
+
+
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
     question = request.messages[-1].content if request.messages else ""
+
+    if not settings.openai_api_key:
+        return StreamingResponse(_missing_openai_key_stream(), media_type="text/event-stream")
 
     if request.mode == "simple_rag":
         return StreamingResponse(rag_event_stream(question), media_type="text/event-stream")

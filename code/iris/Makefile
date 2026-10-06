@@ -61,7 +61,7 @@ setup:
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_memories
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_langcache
 	@echo ""
-	@echo "Done. Run 'make dev' to start."
+	@echo "Done."
 
 reset:
 	@echo "Reloading $(DOMAIN)..."
@@ -75,7 +75,7 @@ reset:
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_memories
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_langcache
 	@echo ""
-	@echo "Done. Run 'make dev' to start."
+	@echo "Done."
 
 # --- Individual steps ---
 

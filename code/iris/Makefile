@@ -10,6 +10,7 @@ DOMAIN ?= $(or $(shell grep -s '^DEMO_DOMAIN=' .env | cut -d= -f2),reddash)
 SED_I := $(shell sed --version >/dev/null 2>&1 && echo "sed -i" || echo "sed -i ''")
 
 .PHONY: help domains setup reset dev backend frontend install insight-import \
+	list-surfaces delete-surface delete-old-surfaces \
 	backend-install frontend-install \
 	generate-models generate-data setup-surface load-data \
 	seed-memories seed-langcache seed-all flush-redis \
@@ -24,6 +25,9 @@ help:
 	@echo ""
 	@echo "  make install            Install Python + JS dependencies"
 	@echo "  make insight-import     Write redis-insight-import.json for Redis Insight"
+	@echo "  make list-surfaces      Show the Context Surfaces tied to this demo"
+	@echo "  make delete-surface     Delete the current Context Surface (asks first)"
+	@echo "  make delete-old-surfaces  Delete earlier surfaces, keeping the current one"
 	@echo "  make seed-memories      Re-seed long-term memories"
 	@echo "  make seed-langcache     Re-seed LangCache entries"
 	@echo "  make flush-redis        Wipe Redis (preserves Agent Memory)"
@@ -62,6 +66,7 @@ setup:
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_memories
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_langcache
 	@uv run python scripts/insight_import.py
+	@uv run python scripts/delete_surface.py --hint
 	@echo ""
 	@echo "Done."
 
@@ -77,6 +82,7 @@ reset:
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_memories
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_langcache
 	@uv run python scripts/insight_import.py
+	@uv run python scripts/delete_surface.py --hint
 	@echo ""
 	@echo "Done."
 
@@ -122,6 +128,16 @@ flush-redis:
 
 insight-import:
 	@uv run python scripts/insight_import.py
+
+# Context Surfaces: every `make setup` creates a new one. These only touch surfaces tied to this demo.
+list-surfaces:
+	@uv run python scripts/delete_surface.py --list
+
+delete-surface:
+	@uv run python scripts/delete_surface.py
+
+delete-old-surfaces:
+	@uv run python scripts/delete_surface.py --old
 
 seed-memories:
 	@DEMO_DOMAIN=$(DOMAIN) uv run python -m scripts.seed_memories

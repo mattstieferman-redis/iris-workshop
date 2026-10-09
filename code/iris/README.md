@@ -183,6 +183,9 @@ scripts/                     # Setup, data loading, seeding, validation
 | `make seed-memories` | Re-seed long-term memories for current domain |
 | `make seed-langcache` | Re-seed LangCache entries for current domain |
 | `make flush-redis` | Wipe Redis database |
+| `make list-surfaces` | Show the Context Surfaces tied to this demo |
+| `make delete-surface` | Delete the current Context Surface (asks first) |
+| `make delete-old-surfaces` | Delete earlier surfaces from this demo, keeping the current one |
 
 All targets read `DEMO_DOMAIN` from `.env` — no need to pass `DOMAIN=` unless switching.
 

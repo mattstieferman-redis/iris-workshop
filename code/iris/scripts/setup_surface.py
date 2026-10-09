@@ -195,6 +195,10 @@ def main() -> None:
             redis_ssl=settings.redis_ssl,
         )
         surface_id = str(payload["id"])
+        # Remember it so `make delete-old-surfaces` can clean up later (the admin key is shared).
+        from scripts.delete_surface import record_surface
+
+        record_surface(surface_id, surface_name)
 
     if agent_key:
         print("Reusing agent key from .env")

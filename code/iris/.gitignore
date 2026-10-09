@@ -2,6 +2,8 @@
 .env
 # Redis Insight import file (contains the Redis password)
 redis-insight-import.json
+# Surfaces this checkout created (used by make delete-old-surfaces)
+.surface-ledger.json
 env.cloud-run.yaml
 
 # AI assistant config (local only)

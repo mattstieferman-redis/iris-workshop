@@ -17,7 +17,6 @@ import warnings
 from typing import Any, Callable, Optional
 
 from langchain_core.tools import StructuredTool
-from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.redis.aio import AsyncRedisSaver
 from langgraph.config import get_config
 from langgraph.prebuilt import create_react_agent
@@ -27,7 +26,8 @@ from backend.app.context_surface_service import ContextSurfaceService
 from backend.app.core.domain_loader import get_active_domain
 from backend.app.internal_tools import InternalToolService, domain_runtime_config
 from backend.app.redis_connection import build_redis_url
-from backend.app.settings import OPENAI_KEY_PLACEHOLDER, Settings
+from backend.app.llm import build_chat_model
+from backend.app.settings import Settings
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
@@ -131,23 +131,11 @@ def _serialize_verifier_context(messages: list[Any]) -> str:
 
 
 def _build_post_model_hook(
-    model: ChatOpenAI,
+    verifier_model: Any,
     *,
     domain: Any,
-    lightweight_model_name: str,
     runtime_config: dict[str, Any],
 ) -> Callable[[dict], Any]:
-    verifier_kw: dict[str, Any] = {
-        "model": lightweight_model_name
-        or getattr(model, "model_name", None)
-        or getattr(model, "model", None),
-        "temperature": 0.2,
-        "api_key": getattr(model, "openai_api_key", None) or getattr(model, "api_key", None),
-    }
-    base_url = getattr(model, "openai_base_url", None) or getattr(model, "base_url", None)
-    if base_url:
-        verifier_kw["base_url"] = base_url
-    verifier_model = ChatOpenAI(**verifier_kw)
     domain_guidance = ""
     if hasattr(domain, "build_answer_verifier_prompt"):
         domain_guidance = str(domain.build_answer_verifier_prompt(runtime_config=runtime_config) or "").strip()
@@ -469,14 +457,7 @@ async def create_agent(
     """Create a LangGraph ReAct agent with all available tools and Redis checkpointer."""
     domain = get_active_domain(settings)
     runtime_config = domain_runtime_config(domain, settings)
-    model_kw: dict[str, Any] = {
-        "model": settings.openai_chat_model,
-        "temperature": 0.2,
-        "api_key": settings.openai_api_key or OPENAI_KEY_PLACEHOLDER,
-    }
-    if settings.openai_base_url:
-        model_kw["base_url"] = settings.openai_base_url
-    model = ChatOpenAI(**model_kw)
+    model = build_chat_model(settings)
 
     tools = _make_internal_tools(internal_tools)
     mcp_defs = await cs_service.list_tools()
@@ -486,9 +467,8 @@ async def create_agent(
     post_model_hook = None
     if runtime_config.get("enable_post_model_verifier", False):
         post_model_hook = _build_post_model_hook(
-            model,
+            build_chat_model(settings, lightweight=True),
             domain=domain,
-            lightweight_model_name=settings.openai_lightweight_model or settings.openai_chat_model,
             runtime_config=runtime_config,
         )
 

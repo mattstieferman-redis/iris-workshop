@@ -20,6 +20,7 @@ from backend.app.contracts import ChatRequest
 from backend.app.internal_tools import InternalToolService, domain_runtime_config, internal_tool_names
 from backend.app.guardrail_service import GuardrailService
 from backend.app.langcache_service import LangCacheService
+from backend.app.llm import message_text
 from backend.app.langgraph_agent import AGENT_TOOL_TOKENS, create_agent, create_checkpointer
 from backend.app.memory_service import MemoryService
 from backend.app.rag_service import SimpleRAGService
@@ -125,7 +126,7 @@ async def get_agent(*, force_rebuild: bool = False):
             t0 = perf_counter()
             _checkpointer = await create_checkpointer(settings)
             _langgraph_agent = await create_agent(settings, internal_tools, cs_service, _checkpointer)
-            log.info("Agent initialized in %dms (model=%s)", round((perf_counter() - t0) * 1000), settings.openai_chat_model)
+            log.info("Agent initialized in %dms (model=%s)", round((perf_counter() - t0) * 1000), settings.chat_model_name)
         return _langgraph_agent
 
 
@@ -318,6 +319,9 @@ async def health() -> JSONResponse:
     return JSONResponse({
         "ok": True,
         "openai_configured": bool(settings.openai_api_key),
+        "llm_provider": settings.llm_provider,
+        "llm_model": settings.chat_model_name,
+        "llm_configured": settings.llm_configured,
         "domain": domain.manifest.id,
         "mcp_enabled": bool(settings.mcp_agent_key),
         "memory_enabled": memory_service.is_configured(),
@@ -769,15 +773,26 @@ async def cs_event_stream(request: ChatRequest) -> AsyncIterator[str]:
                         durationText=_format_elapsed_ms(duration_ms),
                         ts=timer.elapsed_ms(),
                     )
+                # Claude narrates before tool calls ("Let me check your orders...") in the same message.
+                # Those chunks are held back (see on_chat_model_stream), so send only the text of a
+                # model call that made no tool calls, which is the final answer.
+                if settings.uses_anthropic and not defer_final_answer:
+                    output = event["data"].get("output")
+                    if output is not None and not getattr(output, "tool_calls", None):
+                        answer = message_text(getattr(output, "content", ""))
+                        if answer.strip():
+                            final_text += answer
+                            yield sse("text-delta", delta=answer)
 
             elif kind == "on_chat_model_stream":
-                if defer_final_answer:
+                if defer_final_answer or settings.uses_anthropic:
                     continue
                 chunk = event["data"].get("chunk")
                 if chunk and hasattr(chunk, "content") and chunk.content:
-                    if not (hasattr(chunk, "tool_calls") and chunk.tool_calls):
-                        final_text += chunk.content
-                        yield sse("text-delta", delta=chunk.content)
+                    chunk_text = message_text(chunk.content)
+                    if chunk_text and not (hasattr(chunk, "tool_calls") and chunk.tool_calls):
+                        final_text += chunk_text
+                        yield sse("text-delta", delta=chunk_text)
 
     except Exception as exc:
         error_type = type(exc).__name__
@@ -826,7 +841,7 @@ async def cs_event_stream(request: ChatRequest) -> AsyncIterator[str]:
             messages = snapshot.values.get("messages", []) if snapshot and snapshot.values else []
             for msg in reversed(messages):
                 if isinstance(msg, AIMessage) and msg.content and not msg.tool_calls:
-                    final_text = msg.content if isinstance(msg.content, str) else str(msg.content)
+                    final_text = message_text(msg.content)
                     break
         if final_text:
             yield sse("text-delta", delta=final_text)
@@ -911,11 +926,11 @@ async def domain_events_stream(cursor: str = "$") -> StreamingResponse:
     )
 
 
-async def _missing_openai_key_stream() -> AsyncIterator[str]:
+async def _missing_key_stream(env_var: str) -> AsyncIterator[str]:
     yield sse(
         "text-delta",
         delta=(
-            "\u26a0\ufe0f OPENAI_API_KEY is not set. Add it to `.env` "
+            f"\u26a0\ufe0f {env_var} is not set. Add it to `.env` "
             "(the backend restarts automatically when `.env` changes), then ask again."
         ),
     )
@@ -926,8 +941,11 @@ async def _missing_openai_key_stream() -> AsyncIterator[str]:
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
     question = request.messages[-1].content if request.messages else ""
 
-    if not settings.openai_api_key:
-        return StreamingResponse(_missing_openai_key_stream(), media_type="text/event-stream")
+    # Simple RAG always uses OpenAI; the agent uses the configured LLM provider.
+    if request.mode == "simple_rag" and not settings.openai_api_key:
+        return StreamingResponse(_missing_key_stream("OPENAI_API_KEY"), media_type="text/event-stream")
+    if request.mode != "simple_rag" and not settings.llm_configured:
+        return StreamingResponse(_missing_key_stream(settings.llm_key_env_var), media_type="text/event-stream")
 
     if request.mode == "simple_rag":
         return StreamingResponse(rag_event_stream(question), media_type="text/event-stream")

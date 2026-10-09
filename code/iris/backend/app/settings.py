@@ -17,6 +17,9 @@ DEFAULT_MEMORY_SIMILARITY_THRESHOLD = 0.3
 # Chat requests are rejected with a clear message until a real key is set.
 OPENAI_KEY_PLACEHOLDER = "missing-openai-api-key"
 
+# Default Claude model when LLM_PROVIDER=anthropic and LLM_MODEL is unset (Claude API model ID).
+DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -29,6 +32,16 @@ class Settings(BaseSettings):
     openai_base_url: str | None = Field(default=None)
     openai_chat_model: str = Field(default="gpt-4o")
     openai_embedding_model: str = Field(default="text-embedding-3-small")
+    # Which provider serves the agent's chat model: "openai" (default) or "anthropic" (Claude, via the
+    # Claude API or any Anthropic-compatible endpoint such as Amazon Bedrock).
+    llm_provider: str = Field(default="openai")
+    # Overrides OPENAI_CHAT_MODEL (or the default Claude model) when set. On Amazon Bedrock use e.g.
+    # "anthropic.claude-sonnet-5-5".
+    llm_model: str = Field(default="")
+    llm_lightweight_model: str = Field(default="")
+    anthropic_api_key: str = Field(default="")
+    # Leave empty for the Claude API. For Bedrock: https://bedrock-mantle.<region>.api.aws/anthropic
+    anthropic_base_url: str | None = Field(default=None)
     openai_reasoning_effort: str = Field(default="medium")
     openai_lightweight_model: str = Field(default="")
     openai_lightweight_reasoning_effort: str = Field(default="low")
@@ -102,6 +115,30 @@ class Settings(BaseSettings):
     @property
     def effective_memory_actor_id(self) -> str:
         return self.memory_actor_id or f"{self.demo_domain}-agent"
+
+    @property
+    def uses_anthropic(self) -> bool:
+        return self.llm_provider.strip().lower() == "anthropic"
+
+    @property
+    def chat_model_name(self) -> str:
+        """Model name for the agent, whichever provider is selected."""
+        if self.llm_model:
+            return self.llm_model
+        return DEFAULT_CLAUDE_MODEL if self.uses_anthropic else self.openai_chat_model
+
+    @property
+    def lightweight_model_name(self) -> str:
+        return self.llm_lightweight_model or self.openai_lightweight_model or self.chat_model_name
+
+    @property
+    def llm_configured(self) -> bool:
+        """True when the selected provider has an API key."""
+        return bool(self.anthropic_api_key if self.uses_anthropic else self.openai_api_key)
+
+    @property
+    def llm_key_env_var(self) -> str:
+        return "ANTHROPIC_API_KEY" if self.uses_anthropic else "OPENAI_API_KEY"
 
 
 def get_settings() -> Settings:

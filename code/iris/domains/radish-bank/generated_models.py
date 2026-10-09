@@ -350,6 +350,6 @@ class BankDocument(ContextModel):
     content_embedding: list[float] = ContextField(
         description="Embedding of content for vector search",
         index="vector",
-        vector_dim=1536,
+        vector_dim=384,
         distance_metric="cosine",
     )

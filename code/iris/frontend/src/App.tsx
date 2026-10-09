@@ -285,7 +285,7 @@ export default function App() {
                   };
                 case "error":
                   if (import.meta.env.DEV) {
-                    console.error(`[OpenAI Error] ${ev.errorType}: ${ev.message}`);
+                    console.error(`[LLM Error] ${ev.errorType}: ${ev.message}`);
                   }
                   return m;
                 case "text-delta":

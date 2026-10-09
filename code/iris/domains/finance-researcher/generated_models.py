@@ -285,7 +285,7 @@ class ResearchChunk(ContextModel):
     content_embedding: list[float] = ContextField(
         description="Vector embedding of the chunk text",
         index="vector",
-        vector_dim=1536,
+        vector_dim=384,
         distance_metric="cosine",
     )
 

@@ -25,10 +25,9 @@ def test_simple_rag_service_init(monkeypatch):
                 body_fields = ["content"]
 
     class FakeSettings:
-        openai_api_key = "test"
-        openai_base_url = None
-        openai_embedding_model = "text-embedding-3-small"
-        openai_chat_model = "gpt-4.1-mini"
+        anthropic_api_key = "test"
+        anthropic_base_url = None
+        chat_model_name = "claude-sonnet-5-5"
 
     monkeypatch.setattr("backend.app.rag_service.get_active_domain", lambda s: FakeDomain())
     service = SimpleRAGService(FakeSettings())

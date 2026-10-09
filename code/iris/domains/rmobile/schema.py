@@ -15,6 +15,7 @@ from backend.app.core.domain_schema import (
     entity_by_class,
     entity_by_file,
 )
+from backend.app.embeddings import EMBEDDING_DIM
 
 
 ENTITY_SPECS: tuple[EntitySpec, ...] = (
@@ -202,7 +203,7 @@ ENTITY_SPECS: tuple[EntitySpec, ...] = (
             FieldSpec("content", "str", "Full policy text", index="text"),
             FieldSpec(
                 "content_embedding", "list[float]", "Vector embedding of policy content",
-                index="vector", vector_dim=1536, distance_metric="cosine",
+                index="vector", vector_dim=EMBEDDING_DIM, distance_metric="cosine",
             ),
         ),
     ),

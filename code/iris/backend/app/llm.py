@@ -1,4 +1,4 @@
-"""Chat-model provider selection (OpenAI or Claude) and provider-neutral message helpers."""
+"""Chat model (Claude) and provider-neutral message helpers."""
 
 from __future__ import annotations
 
@@ -6,48 +6,35 @@ from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
-from backend.app.settings import OPENAI_KEY_PLACEHOLDER, Settings
+from backend.app.settings import LLM_KEY_PLACEHOLDER, Settings
 
 # Anthropic requires max_tokens on every request.
 ANTHROPIC_MAX_TOKENS = 4096
 
 
 def build_chat_model(settings: Settings, *, lightweight: bool = False) -> BaseChatModel:
-    """Build the LangChain chat model for the configured provider.
+    """Build the Claude chat model through the Claude API or any Anthropic-compatible endpoint.
 
     ``lightweight=True`` returns the cheaper model used for answer verification.
     """
-    name = settings.lightweight_model_name if lightweight else settings.chat_model_name
-    if settings.uses_anthropic:
-        from langchain_anthropic import ChatAnthropic
+    from langchain_anthropic import ChatAnthropic
 
-        kwargs: dict[str, Any] = {
-            "model": name,
-            "temperature": 0.2,
-            "max_tokens": ANTHROPIC_MAX_TOKENS,
-            "api_key": settings.anthropic_api_key or OPENAI_KEY_PLACEHOLDER,
-        }
-        if settings.anthropic_base_url:
-            kwargs["base_url"] = settings.anthropic_base_url
-        return ChatAnthropic(**kwargs)
-
-    from langchain_openai import ChatOpenAI
-
-    kwargs = {
-        "model": name,
+    kwargs: dict[str, Any] = {
+        "model": settings.lightweight_model_name if lightweight else settings.chat_model_name,
         "temperature": 0.2,
-        "api_key": settings.openai_api_key or OPENAI_KEY_PLACEHOLDER,
+        "max_tokens": ANTHROPIC_MAX_TOKENS,
+        "api_key": settings.anthropic_api_key or LLM_KEY_PLACEHOLDER,
     }
-    if settings.openai_base_url:
-        kwargs["base_url"] = settings.openai_base_url
-    return ChatOpenAI(**kwargs)
+    if settings.anthropic_base_url:
+        kwargs["base_url"] = settings.anthropic_base_url
+    return ChatAnthropic(**kwargs)
 
 
 def message_text(content: Any) -> str:
     """Plain text of a message's content.
 
-    OpenAI returns a string. Claude returns a list of blocks (text, tool_use, thinking...), of which
-    only the text blocks are user-visible.
+    Claude returns a list of blocks (text, tool_use, thinking...), of which only the text blocks are
+    user-visible. A plain string is returned unchanged.
     """
     if isinstance(content, str):
         return content

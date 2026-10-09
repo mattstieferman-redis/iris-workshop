@@ -5,6 +5,7 @@ from backend.app.core.domain_schema import (
     FieldSpec,
     RelationshipSpec,
 )
+from backend.app.embeddings import EMBEDDING_DIM
 
 
 ENTITY_SPECS: tuple[EntitySpec, ...] = (
@@ -194,7 +195,7 @@ ENTITY_SPECS: tuple[EntitySpec, ...] = (
                 "list[float]",
                 "Vector embedding for the guide content",
                 index="vector",
-                vector_dim=1536,
+                vector_dim=EMBEDDING_DIM,
                 distance_metric="cosine",
             ),
         ),

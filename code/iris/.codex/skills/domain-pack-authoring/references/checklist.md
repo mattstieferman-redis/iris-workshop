@@ -44,7 +44,7 @@ Use this checklist after scaffolding a domain.
 - `update_env_file` defaults to `False`; only `main()` passes `True`
 - updates demo identity env vars when `update_env_file=True`
 - timestamps are relative to `datetime.now(timezone.utc)` so data stays fresh
-- embedding helper falls back to `fake_embedding` when no `OPENAI_API_KEY` (see `domains/reddash/data_generator.py` lines 32-44)
+- embedding helper uses `embed_documents` from `backend.app.embeddings` (local model, no API key), and schema vector fields use `EMBEDDING_DIM` (see `domains/reddash/data_generator.py`)
 - creates records that support the documented flagship demo paths
 - uses realistic names, amounts, and scenarios — not placeholder text
 

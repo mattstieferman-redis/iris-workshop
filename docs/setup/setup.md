@@ -19,7 +19,7 @@ Open `iris/.env` and fill in the values provided for the workshop:
 
 | Variable(s) | Service |
 |-------------|---------|
-| `OPENAI_API_KEY` | OpenAI |
+| `ANTHROPIC_API_KEY` (plus `ANTHROPIC_BASE_URL` and `LLM_MODEL` if you use Amazon Bedrock) | Claude, the agent's model |
 | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_SSL` | Redis Cloud database |
 | `CTX_ADMIN_KEY` | Context Surfaces (Context Retriever) |
 | `MEMORY_API_BASE_URL`, `MEMORY_STORE_ID`, `MEMORY_API_KEY` | Agent Memory |
@@ -27,7 +27,9 @@ Open `iris/.env` and fill in the values provided for the workshop:
 
 Leave `MCP_AGENT_KEY` and `CTX_SURFACE_ID` empty. The next step fills them in.
 
-> The demo starts even before any credentials are set. Until `OPENAI_API_KEY` is added, the chat replies with a message saying so. The backend restarts automatically whenever `.env` changes.
+No embeddings key is needed: the guardrail, tool routing and Simple RAG use a small embedding model that runs inside the container. The first start downloads it (about 90 MB), so give the backend a minute.
+
+> The demo starts even before any credentials are set. Until `ANTHROPIC_API_KEY` is added, the chat replies with a message saying so. The backend restarts automatically whenever `.env` changes.
 
 ## 2. Load the Data
 
@@ -53,7 +55,8 @@ curl -s backend:8040/api/health
 
 - **App shows errors / 502:** the backend is still starting or waiting for credentials. Check the container logs (`docker compose logs backend`).
 - **Agent has no tools after a restart:** run `make reset` to reload the data.
-- **"RateLimitError" in the chat:** your OpenAI organization hit its tokens-per-minute limit. Every model call carries the tool definitions, and one question makes 3–6 calls. Measured on the Reddash demo with `gpt-4o-mini`, one question used about 8,000–61,000 tokens with semantic tool routing on (the default) and about 32,000–98,000 with it off (`TOOL_ROUTING_ENABLED=false`); see [Task 4](/tasks/task-4.md). A key limited to 30k tokens per minute cannot run the agent even with routing, so for a workshop budget tens of thousands of tokens per question and multiply by the questions your attendees ask in the same minute. Cached and blocked questions use few or no tokens. Switching `OPENAI_CHAT_MODEL` in `.env` changes cost and which rate-limit bucket you use, but not the token count.
+- **"rate limited" in the chat:** your Claude key hit its tokens-per-minute limit. Every model call carries the tool definitions (about 25,000 tokens for all 57 on Claude Haiku 4.5), and one question makes 2 to 4 calls. Measured on five sample questions, semantic tool routing (on by default) used 14,000 to 29,000 tokens per question, against 52,000 to 107,000 with it off (`TOOL_ROUTING_ENABLED=false`); see [Task 4](/tasks/task-4.md). For a workshop, budget tens of thousands of tokens per question and multiply by the questions your attendees ask in the same minute. Cached and blocked questions use few or no tokens.
+- **First start is slow / "could not load the embedding model":** the embedding model downloads from Hugging Face on first use. Check the backend can reach huggingface.co; it is cached afterwards.
 - **Frontend logs:** `tail -f /tmp/vite.log` in the Terminal panel.
 
 Tip: to look at the data the demo loaded, import the generated `iris/redis-insight-import.json` into **Redis Insight**. [Task 2](/tasks/task-2.md) has the steps.

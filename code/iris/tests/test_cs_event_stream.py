@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import os
 
-# main.py constructs OpenAI-backed services at import time.
-os.environ.setdefault("OPENAI_API_KEY", "test-key")
+# main.py constructs Claude-backed services at import time.
+os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
 
 import asyncio
 import json

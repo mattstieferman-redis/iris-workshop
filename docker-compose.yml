@@ -53,6 +53,8 @@ services:
       - /code/iris/frontend/node_modules
       - iris-venv:/opt/venv
       - uv-cache:/root/.cache/uv
+      # Local embedding model (downloaded once on first use)
+      - hf-cache:/root/.cache/huggingface
 
   # Iris backend (FastAPI + LangGraph agent), reached through the workbench at /api/
   backend:
@@ -64,6 +66,8 @@ services:
       - ./code:/code
       - iris-venv:/opt/venv
       - uv-cache:/root/.cache/uv
+      # Local embedding model (downloaded once on first use)
+      - hf-cache:/root/.cache/huggingface
 
   # Redis
   redis:
@@ -85,5 +89,6 @@ services:
 volumes:
   iris-venv:
   uv-cache:
+  hf-cache:
   vscode-data:
   redisinsight-data:

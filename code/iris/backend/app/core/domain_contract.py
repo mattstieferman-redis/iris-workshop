@@ -110,7 +110,7 @@ class ToolRouteConfig(BaseModel):
     # Tool names or fnmatch patterns (e.g. "filter_order*", "get_order_by_id").
     tools: list[str]
     # Max cosine distance to the closest reference for the route to match (lower = stricter).
-    distance_threshold: float = 0.5
+    distance_threshold: float = 0.6
 
 
 class ToolRoutingConfig(BaseModel):

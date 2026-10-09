@@ -13,12 +13,18 @@ if ENV_PATH.exists():
 
 DEFAULT_MEMORY_SIMILARITY_THRESHOLD = 0.3
 
-# Lets the OpenAI clients be constructed (and the app boot) before a key is configured.
+# Lets the Anthropic client be constructed (and the app boot) before a key is configured.
 # Chat requests are rejected with a clear message until a real key is set.
-OPENAI_KEY_PLACEHOLDER = "missing-openai-api-key"
+LLM_KEY_PLACEHOLDER = "missing-anthropic-api-key"
 
-# Default Claude model when LLM_PROVIDER=anthropic and LLM_MODEL is unset (Claude API model ID).
+# Default Claude model when LLM_MODEL is unset (Claude API model ID). On Amazon Bedrock set LLM_MODEL
+# to the Bedrock ID, e.g. "anthropic.claude-sonnet-5-5".
 DEFAULT_CLAUDE_MODEL = "claude-sonnet-5-5"
+
+# Local sentence-transformers model used for every embedding in the demo (guardrail, tool routing,
+# Simple RAG and the seeded policy documents). It runs inside the container, so no API key is needed.
+DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+DEFAULT_EMBEDDING_DIM = 384
 
 
 class Settings(BaseSettings):
@@ -28,23 +34,17 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    openai_api_key: str = Field(default="")
-    openai_base_url: str | None = Field(default=None)
-    openai_chat_model: str = Field(default="gpt-4o")
-    openai_embedding_model: str = Field(default="text-embedding-3-small")
-    # Which provider serves the agent's chat model: "openai" (default) or "anthropic" (Claude, via the
-    # Claude API or any Anthropic-compatible endpoint such as Amazon Bedrock).
-    llm_provider: str = Field(default="openai")
-    # Overrides OPENAI_CHAT_MODEL (or the default Claude model) when set. On Amazon Bedrock use e.g.
-    # "anthropic.claude-sonnet-5-5".
-    llm_model: str = Field(default="")
-    llm_lightweight_model: str = Field(default="")
+    # Claude, through the Claude API or any Anthropic-compatible endpoint (such as Amazon Bedrock).
     anthropic_api_key: str = Field(default="")
     # Leave empty for the Claude API. For Bedrock: https://bedrock-mantle.<region>.api.aws/anthropic
     anthropic_base_url: str | None = Field(default=None)
-    openai_reasoning_effort: str = Field(default="medium")
-    openai_lightweight_model: str = Field(default="")
-    openai_lightweight_reasoning_effort: str = Field(default="low")
+    llm_model: str = Field(default="")
+    llm_lightweight_model: str = Field(default="")
+
+    # Local embeddings. EMBEDDING_DIM must match the model; schemas size their vector fields from it.
+    # Set EMBEDDING_MODEL=hash for deterministic fake vectors (tests and offline use only).
+    embedding_model: str = Field(default=DEFAULT_EMBEDDING_MODEL)
+    embedding_dim: int = Field(default=DEFAULT_EMBEDDING_DIM)
 
     redis_host: str = Field(default="localhost")
     redis_port: int = Field(default=6379)
@@ -117,28 +117,22 @@ class Settings(BaseSettings):
         return self.memory_actor_id or f"{self.demo_domain}-agent"
 
     @property
-    def uses_anthropic(self) -> bool:
-        return self.llm_provider.strip().lower() == "anthropic"
-
-    @property
     def chat_model_name(self) -> str:
-        """Model name for the agent, whichever provider is selected."""
-        if self.llm_model:
-            return self.llm_model
-        return DEFAULT_CLAUDE_MODEL if self.uses_anthropic else self.openai_chat_model
+        """Claude model name for the agent."""
+        return self.llm_model or DEFAULT_CLAUDE_MODEL
 
     @property
     def lightweight_model_name(self) -> str:
-        return self.llm_lightweight_model or self.openai_lightweight_model or self.chat_model_name
+        return self.llm_lightweight_model or self.chat_model_name
 
     @property
     def llm_configured(self) -> bool:
-        """True when the selected provider has an API key."""
-        return bool(self.anthropic_api_key if self.uses_anthropic else self.openai_api_key)
+        """True when a Claude-compatible API key is set."""
+        return bool(self.anthropic_api_key)
 
     @property
     def llm_key_env_var(self) -> str:
-        return "ANTHROPIC_API_KEY" if self.uses_anthropic else "OPENAI_API_KEY"
+        return "ANTHROPIC_API_KEY"
 
 
 def get_settings() -> Settings:

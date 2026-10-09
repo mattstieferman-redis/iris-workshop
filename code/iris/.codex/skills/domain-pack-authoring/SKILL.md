@@ -190,7 +190,7 @@ Adapt tone to the domain (warm for food delivery, professional for healthcare, f
 - If the domain has a `main()` guard at the bottom of `data_generator.py`, it must pass `update_env_file=True` explicitly.
 - `DEMO_USER_ID` must match `manifest.identity.default_id`.
 - All timestamps must be relative to `datetime.now(timezone.utc)` so data stays fresh.
-- The embedding helper must check for `OPENAI_API_KEY` and fall back to `fake_embedding`. Copy from `domains/reddash/data_generator.py` lines 32-44.
+- The embedding helper calls `embed_documents` from `backend.app.embeddings` (local model, no API key) and schema vector fields use `EMBEDDING_DIM`, never a literal size. Copy from `domains/reddash/data_generator.py`.
 
 ## Quality Bar
 

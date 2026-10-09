@@ -414,29 +414,23 @@ async def create_checkpointer(settings: Settings) -> AsyncRedisSaver:
     return checkpointer
 
 
-# OpenAI bills tool definitions more compactly than their raw JSON; this factor was calibrated
-# against measured usage (Reddash: ~21k raw-JSON tokens vs ~14k billed for the 52 MCP tools).
-_SCHEMA_TOKEN_CALIBRATION = 0.65
+# Characters of tool-definition JSON per billed Claude input token, calibrated against measured usage
+# (see scripts/measure_tokens.py). Only used for the "approx tokens saved" figure shown in the UI.
+_SCHEMA_CHARS_PER_TOKEN = 3.9
 
 # Approximate billed tokens per tool definition, filled in by create_agent (used for reporting).
 AGENT_TOOL_TOKENS: dict[str, int] = {}
 
 
-def _estimate_tool_tokens(tools: list[StructuredTool]) -> dict[str, int]:
-    try:
-        import tiktoken
-        from langchain_core.utils.function_calling import convert_to_openai_tool
+def _tool_schema_chars(tool: StructuredTool) -> int:
+    """Size of a tool's definition as sent to the model (name, description and input schema)."""
+    args_schema = getattr(tool, "args_schema", None)
+    schema = args_schema.model_json_schema() if hasattr(args_schema, "model_json_schema") else {}
+    return len(json.dumps({"name": tool.name, "description": tool.description, "input_schema": schema}))
 
-        encoder = tiktoken.get_encoding("o200k_base")
-        return {
-            tool.name: round(
-                len(encoder.encode(json.dumps(convert_to_openai_tool(tool)))) * _SCHEMA_TOKEN_CALIBRATION
-            )
-            for tool in tools
-        }
-    except Exception:  # estimates are informational only
-        log.warning("Could not estimate tool token sizes", exc_info=True)
-        return {}
+
+def _estimate_tool_tokens(tools: list[StructuredTool]) -> dict[str, int]:
+    return {tool.name: round(_tool_schema_chars(tool) / _SCHEMA_CHARS_PER_TOKEN) for tool in tools}
 
 
 def _tool_names_for_call() -> list[str] | None:

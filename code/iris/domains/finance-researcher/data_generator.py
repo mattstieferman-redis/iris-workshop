@@ -16,15 +16,15 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
-import openai
 
 from backend.app.core.domain_contract import GeneratedDataset
 
+from backend.app.embeddings import EMBEDDING_DIM, embed_documents
 
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = ROOT / "output" / "finance-researcher"
 LOCAL_PRICE_DATA_DIR = Path(__file__).resolve().parent / "data" / "prices"
-EMBED_DIMENSION = 1536
+EMBED_DIMENSION = EMBEDDING_DIM
 LIVE_SOURCES_ENV_VAR = "FINANCE_RESEARCHER_USE_LIVE_SOURCES"
 
 SEC_HEADERS = {
@@ -303,33 +303,12 @@ def update_env(key: str, value: str) -> None:
 
 
 def fake_embedding(text: str) -> list[float]:
-    digest = sha256(text.encode("utf-8")).digest()
-    return [digest[i % len(digest)] / 255.0 for i in range(EMBED_DIMENSION)]
+    return embed_documents([text])[0]
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    if os.getenv("FINANCE_RESEARCHER_USE_LIVE_EMBEDDINGS") != "1" or not os.getenv("OPENAI_API_KEY"):
-        return [fake_embedding(text) for text in texts]
-    client = openai.OpenAI()
-    model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-    embeddings: list[list[float]] = []
-    batch: list[str] = []
-    batch_chars = 0
-    max_batch_items = 32
-    max_batch_chars = 80_000
-    for text in texts:
-        text_chars = len(text)
-        if batch and (len(batch) >= max_batch_items or batch_chars + text_chars > max_batch_chars):
-            response = client.embeddings.create(input=batch, model=model)
-            embeddings.extend(item.embedding for item in response.data)
-            batch = []
-            batch_chars = 0
-        batch.append(text)
-        batch_chars += text_chars
-    if batch:
-        response = client.embeddings.create(input=batch, model=model)
-        embeddings.extend(item.embedding for item in response.data)
-    return embeddings
+    """Embed document text with the local embedding model (no API key needed)."""
+    return embed_documents(texts)
 
 
 def http_client() -> httpx.Client:

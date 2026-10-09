@@ -9,11 +9,11 @@ from hashlib import sha256
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import openai
 from dotenv import load_dotenv
 
 from backend.app.core.domain_contract import GeneratedDataset
 
+from backend.app.embeddings import EMBEDDING_DIM, embed_documents
 ROOT = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT / ".env")
 if str(ROOT) not in sys.path:
@@ -30,21 +30,12 @@ now = datetime.now(timezone.utc)
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    if not os.getenv("OPENAI_API_KEY"):
-        return [fake_embedding(text) for text in texts]
-    try:
-        client = openai.OpenAI()
-        resp = client.embeddings.create(
-            input=texts, model=os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"),
-        )
-        return [item.embedding for item in resp.data]
-    except Exception:
-        return [fake_embedding(text) for text in texts]
+    """Embed document text with the local embedding model (no API key needed)."""
+    return embed_documents(texts)
 
 
 def fake_embedding(text: str) -> list[float]:
-    digest = sha256(text.encode("utf-8")).digest()
-    return [digest[i % len(digest)] / 255.0 for i in range(1536)]
+    return embed_documents([text])[0]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

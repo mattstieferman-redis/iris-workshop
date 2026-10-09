@@ -16,7 +16,7 @@ from context_surfaces import UnifiedClient, config as cs_config
 from context_surfaces.context_model import ContextModel, export_data_model
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from pydantic import BaseModel, Field, create_model
 
 NOTEBOOKS_DIR = Path(__file__).resolve().parent
@@ -35,7 +35,7 @@ ENTITY_FILES: dict[str, str] = {
 }
 
 REQUIRED_ENV_KEYS = (
-    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
     "REDIS_HOST",
     "REDIS_PORT",
     "REDIS_PASSWORD",
@@ -49,7 +49,7 @@ REQUIRED_ENV_KEYS = (
 )
 
 WORKSHOP_CONFIG_DEFAULTS: dict[str, str] = {
-    "OPENAI_CHAT_MODEL": "gpt-4o-mini",
+    "LLM_MODEL": "claude-sonnet-5-5",
     "REDIS_USERNAME": "default",
     "REDIS_DB": "0",
     "REDIS_SSL": "false",
@@ -89,9 +89,9 @@ def _env_bool(key: str, default: bool = False) -> bool:
 
 @dataclass(frozen=True)
 class Settings:
-    openai_api_key: str
-    openai_base_url: str | None
-    openai_chat_model: str
+    anthropic_api_key: str
+    anthropic_base_url: str | None
+    llm_model: str
 
     redis_host: str
     redis_port: int
@@ -121,9 +121,9 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         return cls(
-            openai_api_key=_env_str("OPENAI_API_KEY"),
-            openai_base_url=_env_str("OPENAI_BASE_URL") or None,
-            openai_chat_model=_env_str("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+            anthropic_api_key=_env_str("ANTHROPIC_API_KEY"),
+            anthropic_base_url=_env_str("ANTHROPIC_BASE_URL") or None,
+            llm_model=_env_str("LLM_MODEL", "claude-sonnet-5-5"),
             redis_host=_env_str("REDIS_HOST", "localhost"),
             redis_port=_env_int("REDIS_PORT", 6379),
             redis_username=_env_str("REDIS_USERNAME", "default"),
@@ -595,7 +595,7 @@ def validate_env(config: dict[str, str] | None = None) -> dict[str, str]:
         raise RuntimeError(
             "Missing required credentials in WORKSHOP_CONFIG:\n  - "
             + "\n  - ".join(missing)
-            + "\n\nPaste your Redis Cloud and OpenAI values into WORKSHOP_CONFIG, then re-run."
+            + "\n\nPaste your Redis Cloud and Anthropic values into WORKSHOP_CONFIG, then re-run."
         )
     return {key: str(os.environ[key]).strip() for key in REQUIRED_ENV_KEYS}
 
@@ -836,15 +836,16 @@ async def _build_mcp_tools(cs_service: ContextSurfaceService) -> list[Any]:
     return [_make_mcp_tool(tool_def, cs_service) for tool_def in tool_defs]
 
 
-def _build_llm(settings: Settings) -> ChatOpenAI:
+def _build_llm(settings: Settings) -> ChatAnthropic:
     model_kw: dict[str, Any] = {
-        "model": settings.openai_chat_model,
+        "model": settings.llm_model,
         "temperature": 0.2,
-        "api_key": settings.openai_api_key,
+        "api_key": settings.anthropic_api_key,
+        "max_tokens": 4096,
     }
-    if settings.openai_base_url:
-        model_kw["base_url"] = settings.openai_base_url
-    return ChatOpenAI(**model_kw)
+    if settings.anthropic_base_url:
+        model_kw["base_url"] = settings.anthropic_base_url
+    return ChatAnthropic(**model_kw)
 
 
 async def chat_turn(

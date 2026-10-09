@@ -10,6 +10,12 @@ fi
 
 uv sync --frozen --extra dev || exit 1
 
+# Download/load the local embedding model now (first run downloads ~90 MB), so the first chat message
+# is not slow and a network problem shows up here.
+echo "Loading the embedding model (first run downloads it)..."
+python -c "from backend.app.embeddings import get_vectorizer; v = get_vectorizer(); print('Embedding model ready:', v.model, v.dims, 'dims')" \
+  || echo "WARNING: could not load the embedding model. Check network access to huggingface.co."
+
 # --reload-dir is limited to Python code so the watcher ignores node_modules.
 export WATCHFILES_FORCE_POLLING=true
 

@@ -6,14 +6,16 @@ import json
 from typing import Any, AsyncIterator
 from uuid import uuid4
 
-from openai import AsyncOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
 from redisvl.index import SearchIndex
 from redisvl.query import VectorQuery
 
 from backend.app.core.domain_loader import get_active_domain
-from backend.app.openai_errors import classify_openai_exception
+from backend.app.embeddings import aembed_query
+from backend.app.llm import build_chat_model, message_text
+from backend.app.llm_errors import classify_llm_exception
 from backend.app.redis_connection import RESILIENT_CONNECTION_KWARGS, build_redis_url, create_redis_client
-from backend.app.settings import OPENAI_KEY_PLACEHOLDER, Settings
+from backend.app.settings import Settings
 
 
 def _discover_index(settings: Settings, *, name_contains: str) -> str:
@@ -49,10 +51,7 @@ class SimpleRAGService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.domain = get_active_domain(settings)
-        client_kw: dict[str, Any] = {"api_key": settings.openai_api_key or OPENAI_KEY_PLACEHOLDER}
-        if settings.openai_base_url:
-            client_kw["base_url"] = settings.openai_base_url
-        self.openai = AsyncOpenAI(**client_kw)
+        self._chat_model: Any = None
         self._index: SearchIndex | None = None
         self._index_name: str | None = None
 
@@ -68,11 +67,12 @@ class SimpleRAGService:
         return self._index
 
     async def _embed(self, text: str) -> list[float]:
-        resp = await self.openai.embeddings.create(
-            input=[text],
-            model=self.settings.openai_embedding_model,
-        )
-        return resp.data[0].embedding
+        return await aembed_query(text)
+
+    def _model(self) -> Any:
+        if self._chat_model is None:
+            self._chat_model = build_chat_model(self.settings)
+        return self._chat_model
 
     def _search_documents(self, embedding: list[float]) -> list[dict[str, Any]]:
         rag = self.domain.manifest.rag
@@ -97,8 +97,7 @@ class SimpleRAGService:
         try:
             embedding = await self._embed(question)
         except Exception as exc:
-            code, msg = classify_openai_exception(exc)
-            error_code = "budget_exceeded" if code == "budget_exceeded" else "openai_error"
+            error_code, msg = classify_llm_exception(exc)
             yield _sse("error", errorCode=error_code, message=msg, ts=timer.elapsed_ms())
             return
 
@@ -148,22 +147,14 @@ class SimpleRAGService:
         context_text = "\n\n".join(context_chunks)
         system_prompt = f"{rag.answer_system_prompt}\n\n--- DOMAIN DOCUMENTS ---\n{context_text}\n--- END ---"
         try:
-            stream = await self.openai.chat.completions.create(
-                model=self.settings.openai_chat_model,
-                temperature=0.2,
-                stream=True,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": question},
-                ],
-            )
-            async for chunk in stream:
-                delta = chunk.choices[0].delta.content or ""
+            async for chunk in self._model().astream(
+                [SystemMessage(content=system_prompt), HumanMessage(content=question)]
+            ):
+                delta = message_text(chunk.content)
                 if delta:
                     yield _sse("text-delta", delta=delta)
         except Exception as exc:
-            code, msg = classify_openai_exception(exc)
-            error_code = "budget_exceeded" if code == "budget_exceeded" else "openai_error"
+            error_code, msg = classify_llm_exception(exc)
             yield _sse("error", errorCode=error_code, message=msg, ts=timer.elapsed_ms())
 
 

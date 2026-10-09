@@ -4,7 +4,7 @@ The agent has dozens of tools, and every model call re-sends all of their defini
 tokens for Reddash). Here a second SemanticRouter (RedisVL) classifies the question against
 groups of example questions, and only the tools in the matching groups are attached to the
 model call. It reuses the embedding the guardrail already computed, so routing adds one Redis
-vector search and no extra OpenAI call.
+vector search and no extra embedding call.
 
 If nothing matches, every tool is attached, so routing can only save tokens, never remove
 the agent's ability to answer.
@@ -20,9 +20,9 @@ from typing import Any
 
 from redisvl.extensions.router import Route, SemanticRouter
 from redisvl.extensions.router.schema import RoutingConfig
-from redisvl.utils.vectorize import OpenAITextVectorizer
 
 from backend.app.core.domain_contract import ToolRoutingConfig
+from backend.app.embeddings import get_vectorizer
 from backend.app.redis_connection import build_redis_url
 from backend.app.settings import Settings
 
@@ -67,8 +67,6 @@ class ToolRoutingService:
     def __init__(self, settings: Settings, config: ToolRoutingConfig | None):
         self._config = config
         self._enabled = settings.tool_routing_enabled
-        self._openai_api_key = settings.openai_api_key
-        self._embedding_model = settings.openai_embedding_model
         self._redis_url = build_redis_url(settings)
         self._router: SemanticRouter | None = None
         self._lock = asyncio.Lock()
@@ -76,7 +74,7 @@ class ToolRoutingService:
     def is_configured(self) -> bool:
         return bool(
             self._enabled and self._config and self._config.routes
-            and self._openai_api_key and self._redis_url
+            and self._redis_url
         )
 
     async def _ensure_router(self) -> SemanticRouter:
@@ -86,10 +84,7 @@ class ToolRoutingService:
             if self._router is not None:
                 return self._router
             assert self._config is not None
-            vectorizer = OpenAITextVectorizer(
-                model=self._embedding_model,
-                api_config={"api_key": self._openai_api_key},
-            )
+            vectorizer = await asyncio.to_thread(get_vectorizer)
             routes = [
                 Route(
                     name=route.name,

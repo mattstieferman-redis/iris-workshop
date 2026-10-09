@@ -5,45 +5,43 @@ from backend.app.settings import DEFAULT_CLAUDE_MODEL, Settings
 
 
 def _settings(**overrides) -> Settings:
-    base = {"openai_api_key": "", "anthropic_api_key": "", "llm_provider": "openai", "llm_model": ""}
+    base = {"anthropic_api_key": "", "llm_model": "", "anthropic_base_url": None}
     return Settings(_env_file=None, **{**base, **overrides})
 
 
-def test_openai_is_the_default_provider():
-    s = _settings(openai_api_key="sk-test", openai_chat_model="gpt-4o")
-    assert not s.uses_anthropic
-    assert s.chat_model_name == "gpt-4o"
-    assert s.llm_configured and s.llm_key_env_var == "OPENAI_API_KEY"
-    assert type(build_chat_model(s)).__name__ == "ChatOpenAI"
-
-
-def test_anthropic_provider_needs_its_own_key():
-    s = _settings(llm_provider="anthropic", openai_api_key="sk-test")
-    assert s.uses_anthropic
-    assert not s.llm_configured  # an OpenAI key does not configure Claude
+def test_claude_is_the_only_model_and_needs_its_key():
+    s = _settings()
+    assert not s.llm_configured
     assert s.llm_key_env_var == "ANTHROPIC_API_KEY"
     assert s.chat_model_name == DEFAULT_CLAUDE_MODEL
+    assert _settings(anthropic_api_key="k").llm_configured
 
 
-def test_anthropic_model_uses_override_base_url_and_max_tokens():
+def test_model_uses_override_base_url_and_max_tokens():
     s = _settings(
-        llm_provider="Anthropic",
         anthropic_api_key="token",
-        anthropic_base_url="https://bedrock-mantle.us-east-1.api.aws/anthropic",
+        anthropic_base_url="https://bedrock-mantle.us-east-2.api.aws/anthropic",
         llm_model="anthropic.claude-sonnet-5-5",
         llm_lightweight_model="anthropic.claude-haiku-4-5",
     )
     model = build_chat_model(s)
     assert type(model).__name__ == "ChatAnthropic"
     assert model.model == "anthropic.claude-sonnet-5-5"
-    assert model.anthropic_api_url == "https://bedrock-mantle.us-east-1.api.aws/anthropic"
+    assert model.anthropic_api_url == "https://bedrock-mantle.us-east-2.api.aws/anthropic"
     assert model.max_tokens == ANTHROPIC_MAX_TOKENS
     assert build_chat_model(s, lightweight=True).model == "anthropic.claude-haiku-4-5"
 
 
 def test_lightweight_model_falls_back_to_the_chat_model():
-    s = _settings(llm_provider="anthropic", anthropic_api_key="token", llm_model="claude-x")
+    s = _settings(anthropic_api_key="token", llm_model="claude-x")
     assert s.lightweight_model_name == "claude-x"
+
+
+def test_no_openai_dependency_remains():
+    import importlib.util
+
+    assert importlib.util.find_spec("openai") is None
+    assert importlib.util.find_spec("langchain_openai") is None
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-"""Measure OpenAI token usage for demo questions, one model call at a time.
+"""Measure Claude token usage for demo questions, one model call at a time.
 
 Run it with semantic tool routing off and on to see how many tokens routing saves:
 
@@ -82,7 +82,7 @@ async def measure(question: str) -> dict:
 
 async def run(questions: list[str]) -> None:
     routing_on = main.tool_routing_service.is_configured()
-    print(f"Tool routing: {'ON' if routing_on else 'OFF'}   model: {main.settings.chat_model_name} ({main.settings.llm_provider})")
+    print(f"Tool routing: {'ON' if routing_on else 'OFF'}   model: {main.settings.chat_model_name}")
     grand_total = 0
     for question in questions:
         result = await measure(question)

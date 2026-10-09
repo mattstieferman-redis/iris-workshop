@@ -318,8 +318,6 @@ def _pop_pending_tool(
 async def health() -> JSONResponse:
     return JSONResponse({
         "ok": True,
-        "openai_configured": bool(settings.openai_api_key),
-        "llm_provider": settings.llm_provider,
         "llm_model": settings.chat_model_name,
         "llm_configured": settings.llm_configured,
         "domain": domain.manifest.id,
@@ -776,7 +774,7 @@ async def cs_event_stream(request: ChatRequest) -> AsyncIterator[str]:
                 # Claude narrates before tool calls ("Let me check your orders...") in the same message.
                 # Those chunks are held back (see on_chat_model_stream), so send only the text of a
                 # model call that made no tool calls, which is the final answer.
-                if settings.uses_anthropic and not defer_final_answer:
+                if not defer_final_answer:
                     output = event["data"].get("output")
                     if output is not None and not getattr(output, "tool_calls", None):
                         answer = message_text(getattr(output, "content", ""))
@@ -785,14 +783,9 @@ async def cs_event_stream(request: ChatRequest) -> AsyncIterator[str]:
                             yield sse("text-delta", delta=answer)
 
             elif kind == "on_chat_model_stream":
-                if defer_final_answer or settings.uses_anthropic:
-                    continue
-                chunk = event["data"].get("chunk")
-                if chunk and hasattr(chunk, "content") and chunk.content:
-                    chunk_text = message_text(chunk.content)
-                    if chunk_text and not (hasattr(chunk, "tool_calls") and chunk.tool_calls):
-                        final_text += chunk_text
-                        yield sse("text-delta", delta=chunk_text)
+                # Intentionally empty: text is sent once per model call in on_chat_model_end, so
+                # Claude's pre-tool narration never reaches the customer.
+                continue
 
     except Exception as exc:
         error_type = type(exc).__name__
@@ -941,10 +934,7 @@ async def _missing_key_stream(env_var: str) -> AsyncIterator[str]:
 async def chat_stream(request: ChatRequest) -> StreamingResponse:
     question = request.messages[-1].content if request.messages else ""
 
-    # Simple RAG always uses OpenAI; the agent uses the configured LLM provider.
-    if request.mode == "simple_rag" and not settings.openai_api_key:
-        return StreamingResponse(_missing_key_stream("OPENAI_API_KEY"), media_type="text/event-stream")
-    if request.mode != "simple_rag" and not settings.llm_configured:
+    if not settings.llm_configured:
         return StreamingResponse(_missing_key_stream(settings.llm_key_env_var), media_type="text/event-stream")
 
     if request.mode == "simple_rag":

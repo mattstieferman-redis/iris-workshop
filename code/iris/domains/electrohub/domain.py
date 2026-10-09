@@ -483,12 +483,14 @@ class ElectrohubDomain:
         }
 
     def _analyze_shopping_request(self, *, request: str, settings: Any) -> dict[str, Any]:
-        from openai import OpenAI
+        from langchain_core.messages import HumanMessage, SystemMessage
 
-        if not settings.openai_api_key:
+        from backend.app.llm import build_chat_model, message_text
+
+        if not settings.llm_configured:
             return {
                 "request": request,
-                "summary": "No OpenAI API key configured for shopping intent analysis.",
+                "summary": f"No {settings.llm_key_env_var} configured for shopping intent analysis.",
                 "likely_platforms": [],
                 "likely_device_types": [],
                 "performance_tier": "unknown",
@@ -496,35 +498,27 @@ class ElectrohubDomain:
                 "confidence": "low",
             }
 
-        client_kw: dict[str, Any] = {"api_key": settings.openai_api_key}
-        base_url = getattr(settings, "openai_base_url", None)
-        if base_url:
-            client_kw["base_url"] = base_url
-        client = OpenAI(**client_kw)
-        response = client.chat.completions.create(
-            model=settings.openai_lightweight_model or settings.openai_chat_model,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
+        model = build_chat_model(settings, lightweight=True)
+        response = model.invoke(
+            [
+                SystemMessage(
+                    content=(
                         "You are an electronics retail shopping-intent analyst. "
                         "Interpret a shopper's request and infer what kinds of devices they likely need. "
                         "For unfamiliar software or game names, use general knowledge to infer likely platform, "
                         "device class, portability needs, and performance level. "
-                        "Return only JSON with keys: "
+                        "Return only a JSON object (no markdown, no commentary) with keys: "
                         "summary, likely_platforms, likely_device_types, performance_tier, "
                         "portability_preference, suggested_search_terms, confidence, cautions. "
                         "Keep suggested_search_terms short and retail-oriented."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": request,
-                },
-            ],
+                    )
+                ),
+                HumanMessage(content=request),
+            ]
         )
-        content = response.choices[0].message.content or "{}"
+        content = message_text(response.content).strip() or "{}"
+        if content.startswith("```"):  # tolerate a fenced JSON block
+            content = content.strip("`").removeprefix("json").strip()
         try:
             parsed = json.loads(content)
         except json.JSONDecodeError:

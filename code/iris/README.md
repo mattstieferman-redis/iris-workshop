@@ -52,7 +52,7 @@ The `legacy/context-engine-demos/` directory contains an archived copy of the or
 | [Context Surfaces](https://redis.io/docs/latest/develop/ai/context-engine/context-retriever/) | Admin key |
 | [Agent Memory](https://redis.io/docs/latest/develop/ai/context-engine/agent-memory/) | Base URL, store ID, API key |
 | [LangCache](https://redis.io/docs/latest/develop/ai/context-engine/langcache/) | Host, cache ID, API key |
-| OpenAI | [API key](https://platform.openai.com/api-keys) |
+| Claude | An API key for the Claude API or a Claude-compatible endpoint such as Amazon Bedrock |
 
 ### First time
 

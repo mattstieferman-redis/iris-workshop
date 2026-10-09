@@ -11,26 +11,22 @@ import asyncio
 import logging
 from typing import Any
 
-from openai import AsyncOpenAI
 from redisvl.extensions.router import Route, SemanticRouter
 from redisvl.extensions.router.schema import RoutingConfig
-from redisvl.utils.vectorize import OpenAITextVectorizer
 
 from backend.app.core.domain_contract import GuardrailConfig
+from backend.app.embeddings import aembed_query, get_vectorizer
 from backend.app.redis_connection import build_redis_url
-from backend.app.settings import OPENAI_KEY_PLACEHOLDER, Settings
+from backend.app.settings import Settings
 
 log = logging.getLogger("iris.guardrail")
 
 
 class GuardrailService:
     def __init__(self, settings: Settings, guardrail_config: GuardrailConfig | None = None) -> None:
-        self._openai_api_key = settings.openai_api_key
-        self._embedding_model = settings.openai_embedding_model
         self._redis_url = build_redis_url(settings)
         self._enabled = settings.guardrail_enabled
         self._config = guardrail_config
-        self._openai = AsyncOpenAI(api_key=settings.openai_api_key or OPENAI_KEY_PLACEHOLDER)
         self._router: SemanticRouter | None = None
         self._lock = asyncio.Lock()
         self._block_messages: dict[str, str] = {
@@ -40,7 +36,7 @@ class GuardrailService:
         }
 
     def is_configured(self) -> bool:
-        return bool(self._enabled and self._config and self._openai_api_key and self._redis_url)
+        return bool(self._enabled and self._config and self._redis_url)
 
     async def _ensure_router(self) -> SemanticRouter:
         if self._router is not None:
@@ -51,10 +47,7 @@ class GuardrailService:
             if not self._config:
                 raise RuntimeError("No guardrail config provided")
 
-            vectorizer = OpenAITextVectorizer(
-                model=self._embedding_model,
-                api_config={"api_key": self._openai_api_key},
-            )
+            vectorizer = await asyncio.to_thread(get_vectorizer)
 
             routes = [
                 Route(
@@ -86,11 +79,7 @@ class GuardrailService:
             return self._router
 
     async def embed(self, text: str) -> list[float]:
-        resp = await self._openai.embeddings.create(
-            input=[text],
-            model=self._embedding_model,
-        )
-        return resp.data[0].embedding
+        return await aembed_query(text)
 
     async def check(self, vector: list[float]) -> dict[str, Any]:
         if not self._config:

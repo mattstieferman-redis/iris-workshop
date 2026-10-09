@@ -22,7 +22,8 @@ Run these in the Terminal panel (they start in `/code/iris`):
 | `make list-surfaces` | Show the Context Surfaces tied to this demo |
 | `make delete-surface` | Delete the current Context Surface (asks first) |
 | `make delete-old-surfaces` | Delete earlier Context Surfaces, keeping the current one |
-| `uv run python scripts/measure_tokens.py "question"` | Measure OpenAI tokens per model call (set `TOOL_ROUTING_ENABLED=false` to compare) |
+| `uv run python scripts/measure_tokens.py "question"` | Measure Claude tokens per model call (set `TOOL_ROUTING_ENABLED=false` to compare) |
+| `uv run python scripts/eval_routing.py` | Score the guardrail and tool-route thresholds against the messages in `domains/reddash/routing_eval.json` (run it after changing the embedding model, routes or thresholds) |
 | `pytest` | Run the unit tests |
 
 ## Where Things Run
@@ -49,7 +50,6 @@ If several people share one Redis database, a `make setup` by one person gives e
 
 ## Known Issues
 
-- Some tests depend on test order. If `pytest` reports OpenAI 401 errors in the data generator tests, run the failing test file on its own.
 - `tests/test_healthcare_domain.py::test_generate_demo_data_jsonl_valid` fails: it expects an `id` field that the generator does not write.
 
 ## Keyboard Shortcuts in VS Code

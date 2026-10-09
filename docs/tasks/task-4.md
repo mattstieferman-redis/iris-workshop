@@ -6,9 +6,9 @@ Cut the cost of every agent question by sending the LLM only the tools it needs,
 
 ## Why it matters
 
-The Reddash agent has 57 tools. Every time it calls the model, all the tool definitions are sent along: about **15,000 tokens per call**, and one question makes 3-6 calls. Most questions only need a few of those tools.
+The Reddash agent has 57 tools. Every time it calls the model, all the tool definitions are sent along: about **25,000 tokens per call on Claude**, and one question makes 2-4 calls. Most questions only need a few of those tools.
 
-Semantic tool routing fixes that. A second semantic router (stored in Redis, like the guardrail) matches the question against groups of example questions and attaches only the matching group's tools. It reuses the embedding the guardrail already computed, so it adds a Redis vector search and no extra OpenAI call. If nothing matches, every tool is attached, so routing can save tokens but never removes the agent's ability to answer.
+Semantic tool routing fixes that. A second semantic router (stored in Redis, like the guardrail) matches the question against groups of example questions and attaches only the matching group's tools. It reuses the embedding the guardrail already computed, so it adds a Redis vector search and no extra model call. If nothing matches, every tool is attached, so routing can save tokens but never removes the agent's ability to answer.
 
 ## Instructions
 
@@ -20,7 +20,7 @@ In the **Terminal** panel run:
 TOOL_ROUTING_ENABLED=false uv run python scripts/measure_tokens.py "I reported a missing item last week - was that resolved?"
 ```
 
-Note the **input tokens per call** and the **TOTAL tokens**. (This makes real OpenAI calls and uses your key's quota.)
+Note the **input tokens per call** and the **TOTAL tokens**. (This makes real Claude calls and uses your key's quota.)
 
 ### Step 2: Measure with routing
 
@@ -28,7 +28,7 @@ Note the **input tokens per call** and the **TOTAL tokens**. (This makes real Op
 TOOL_ROUTING_ENABLED=true uv run python scripts/measure_tokens.py "I reported a missing item last week - was that resolved?"
 ```
 
-The question now matches the `support_tickets` route, so only 11 of 57 tools are sent. In our test the total dropped from about **47,000** to about **11,000** tokens.
+The question now matches the `support_tickets` and `policies` routes, so only 15 of 57 tools are sent. In our test the total dropped from about **77,000** to about **21,000** tokens (72% fewer). Across five sample questions it was about 392,000 against 117,000 tokens, roughly 70% fewer.
 
 ### Step 3: Watch it in the app
 
@@ -51,6 +51,16 @@ Try one of these, save, and wait a few seconds for the backend to reload and reb
 1. Ask a question in your own words, such as "Did you ever sort out my complaint?". Does it route correctly? Add a reference phrase to the route if not.
 2. Lower a `distance_threshold` until a question stops matching. What does the activity panel show? (No match means every tool is attached.)
 3. Remove `filter_supportticket` from the `support_tickets` route and ask the missing-item question again. This is the risk of routing: the agent can't use a tool it was never shown.
+
+### Step 6: Check that you did not break anything
+
+Routes and thresholds are easy to get subtly wrong, so score them against a set of example messages:
+
+```bash
+uv run python scripts/eval_routing.py
+```
+
+It reports, for the guardrail, any attack that gets through and any normal question that is blocked or flagged, and for the tool routes, any question whose expected tool group was not matched, plus how many groups match on average (fewer groups means fewer tokens). The messages live in `iris/domains/reddash/routing_eval.json`; add your own. Run it again whenever you change a route, a threshold, or the embedding model.
 
 ## Challenge
 
